@@ -11,40 +11,36 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#ifdef FIX_CLASS
+#ifdef PAIR_CLASS
 
-FixStyle(mesoe,FixMesoe)
+PairStyle(sph/egas,PairSPHEGas)
 
 #else
 
-#ifndef LMP_FIX_MESOE_H
-#define LMP_FIX_MESOE_H
+#ifndef LMP_PAIR_EGAS_H
+#define LMP_PAIR_EGAS_H
 
-#include "fix.h"
+#include "pair.h"
 
 namespace LAMMPS_NS {
 
-class FixMesoe : public Fix {
+class PairSPHEGas : public Pair {
  public:
-  FixMesoe(class LAMMPS *, int, char **);
-  int setmask();
-  virtual void init();
-  virtual void setup_pre_force(int);
-  virtual void initial_integrate(int);
-  virtual void final_integrate();
-  void reset_dt();
+  PairSPHEGas(class LAMMPS *);
+  virtual ~PairSPHEGas();
+  virtual void compute(int, int);
+  void settings(int, char **);
+  void coeff(int, char **);
+  virtual double init_one(int, int);
+  virtual double single(int, int, int, int, double, double, double, double &);
 
  private:
-  class NeighList *list;
-  double solve_cv(double, double, double);
-  double f(double, double, double, double, double);
-  double get_mu(double, double, double);
- protected:
-  double dtv,dtf;
-  double *step_respa;
-  int mass_require;
+  double get_pressure(double, double, double);
 
-  class Pair *pair;
+ protected:
+  double **cut,**viscosity;
+
+  void allocate();
 };
 
 }

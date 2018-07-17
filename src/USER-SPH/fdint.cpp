@@ -180,11 +180,11 @@ namespace LAMMPS_NS {
         num = inh_a[0];
         den = inh_b[0];
         for (int i = 1; i < 5; i++) {
-          num += ih_a[i]*temp_y;
-          den += ih_b[i]*temp_y;
+          num += inh_a[i]*temp_y;
+          den += inh_b[i]*temp_y;
           temp_y = temp_y*y;
         }
-        den += ih_b[5]*temp_y;
+        den += inh_b[5]*temp_y;
         temp_y = y*num/den;
 
       } else {
@@ -192,11 +192,11 @@ namespace LAMMPS_NS {
         num = inh_c[0];
         den = inh_d[0];
         for (int i = 1; i < 7; i++) {
-          num += ih_c[i]*temp_y;
-          den += ih_d[i]*temp_y;
+          num += inh_c[i]*temp_y;
+          den += inh_d[i]*temp_y;
           temp_y = temp_y*y;
         }
-        den += ih_b[7]*temp_y;
+        den += inh_d[7]*temp_y;
         temp_y = pow(y, 0.5)*num/den;
       }
       return temp_y;
