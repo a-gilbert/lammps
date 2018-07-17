@@ -12,6 +12,8 @@ namespace LAMMPS_NS {
     double arcih(double y);
     //Approximate value for I_{1/2}(y)
     double ih(double y);
+    //Approximate value for I_{-1/2}(y)
+    double inh(double y);
     //Approximate value for I_{3/2}(y)
     double i3h(double y);
 

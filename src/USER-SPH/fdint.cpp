@@ -49,6 +49,36 @@ namespace LAMMPS_NS {
                                   1.309399040,
                                   1.727377764e-1};
 
+    static const double inh_a[] = {8.830316038e2,
+                                   1.183989392e3,
+                                   4.473770672e2,
+                                   4.892542028e1,
+                                   1.00};
+
+    static const double inh_b[] = {4.981972343e2,
+                                   1.020272984e3,
+                                   6.862151992e2,
+                                   1.728621255e2,
+                                   1.39857990e1,
+                                   2.138408204e-1};
+
+    static const double inh_c[] = {-4.9141019880e-8,
+                                   -4.2786358805e-6,
+                                   -7.4382915429e-4,
+                                   -3.2856045308e-2,
+                                   -5.6853219702e-1,
+                                   -1.9284139162,
+                                   1.000};
+
+    static const double inh_d[] = {-2.4570509894e-8,
+                                   -3.6344227710e-6,
+                                   -3.7345152736e-4,
+                                   -1.6589736860e-2,
+                                   -2.9154391835e-1,
+                                   -1.1843742874,
+                                   7.0985168479e-1,
+                                   -6.0197789199e-2};
+
     static const double i3h_a[] = {9.895512903e2,
                                    1.237156375e3,
                                    4.413986183e2,
@@ -79,26 +109,32 @@ namespace LAMMPS_NS {
                                    -1.7443752246e-2};
 
 
-
+    //For public record: I loathe both this function
+    //and the heat capacity of
+    //fermions at finite temperature.
     double arcih(double y) {
-      double num = log(y) + arcih_a[0]*pow(y, 5/2.0) + arcih_a[1];
+      double u_init = pow(y, 2.0/3);
+      double v_init = u_init*u_init;
+      double u = u_init;
+      double v = v_init;
+      double num = log(y) + arcih_a[0]*pow(u, 5.0/2) + arcih_a[1];
       double den = 1;
-      double temp_y = y;
       int i = 1;
       while(i < 5) {
-        num += arcih_a[i+1]*temp_y;
-        den += arcih_b[i-1]*temp_y;
-        temp_y = temp_y*y;
+        num += arcih_a[i+1]*u;
+        den += arcih_b[i-1]*v;
+        u = u*u_init; //u = u^{i+1}
+        v = v*v_init; //v = v^{i+1}
         i++;
       }
       while(i < 8) {
-        num += arcih_a[i+1]*temp_y;
-        temp_y = temp_y*y;
+        num += arcih_a[i+1]*u;
+        u = u * u_init;
         i++;
       }
-      num += arcih_a[9]*temp_y*y*y;
-      temp_y = num/den;
-      return temp_y;
+      num += arcih_a[9]*u*u_init*u_init;
+      num = num/den;
+      return num;
     }
 
     double ih(double y) {
@@ -129,6 +165,39 @@ namespace LAMMPS_NS {
           temp_y = temp_y*temp_y;
         }
         temp_y = pow(y, 1.5)*num/den;
+      }
+      return temp_y;
+    }
+
+
+    double inh(double y) {
+      double temp_y;
+      double num;
+      double den;
+      if (y < 2) {
+        y = exp(y);
+        temp_y = y;
+        num = inh_a[0];
+        den = inh_b[0];
+        for (int i = 1; i < 5; i++) {
+          num += ih_a[i]*temp_y;
+          den += ih_b[i]*temp_y;
+          temp_y = temp_y*y;
+        }
+        den += ih_b[5]*temp_y;
+        temp_y = y*num/den;
+
+      } else {
+        temp_y = 1/(y*y);
+        num = inh_c[0];
+        den = inh_d[0];
+        for (int i = 1; i < 7; i++) {
+          num += ih_c[i]*temp_y;
+          den += ih_d[i]*temp_y;
+          temp_y = temp_y*y;
+        }
+        den += ih_b[7]*temp_y;
+        temp_y = pow(y, 0.5)*num/den;
       }
       return temp_y;
     }
