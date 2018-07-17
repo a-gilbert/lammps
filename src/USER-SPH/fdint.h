@@ -7,7 +7,6 @@
 #define LMP_FDINT_H
 
 namespace LAMMPS_NS {
-
   namespace FDINT {
     //Approximate value for ArcI_{1/2}(y)
     double arcih(double y);

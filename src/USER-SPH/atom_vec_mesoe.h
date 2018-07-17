@@ -73,7 +73,7 @@ class AtomVecMesoe : public AtomVec {
   int *type,*mask;
   imageint *image;
   double **x,**v,**f;
-  double *rho, *drho, *e, *de, *cv, *q, *mu;
+  double *q, *rho, *drho, *e, *de, *cv, *smu; //smu = sph mu
   double **vest; // estimated velocity during force computation
 };
 

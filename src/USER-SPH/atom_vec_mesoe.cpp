@@ -39,9 +39,9 @@ AtomVecMesoe::AtomVecMesoe(LAMMPS *lmp) : AtomVec(lmp)
   comm_f_only = 0; // we also communicate de and drho in reverse direction
   size_forward = 9; // 3 + rho + e + mu + vest[3], that means we may only communicate 5 in hybrid
   size_reverse = 5; // 3 + drho + de
-  size_border = 14; // 6 + q + rho + e + vest[3] + cv + mu
+  size_border = 14; // 6 + q + rho + e + vest[3] + cv + sph_mu
   size_velocity = 3;
-  size_data_atom = 10; //atomID, atom-type, q, rho, E, Cv, mu, x, y, z
+  size_data_atom = 10; //atomID, atom-type, q, rho, E, Cv, sph_mu, x, y, z
   size_data_vel = 4;
   xcol_data = 8;
 
@@ -50,7 +50,7 @@ AtomVecMesoe::AtomVecMesoe(LAMMPS *lmp) : AtomVec(lmp)
   atom->cv_flag = 1;
   atom->vest_flag = 1;
   atom->q_flag = 1;
-  atom->sph_mu_flag = 1;
+  atom->smu_flag = 1;
 }
 
 /* ----------------------------------------------------------------------
@@ -82,7 +82,7 @@ void AtomVecMesoe::grow(int n)
   de = memory->grow(atom->de, nmax*comm->nthreads, "atom:de");
   vest = memory->grow(atom->vest, nmax, 3, "atom:vest");
   cv = memory->grow(atom->cv, nmax, "atom:cv");
-  mu = memory->grow(atom->mu, nmax, "atom:mu");
+  sph_mu = memory->grow(atom->smu, nmax, "atom:smu");
 
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
@@ -108,7 +108,7 @@ void AtomVecMesoe::grow_reset() {
   de = atom->de;
   vest = atom->vest;
   cv = atom->cv;
-  mu = atom->mu;
+  smu = atom->smu;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -132,7 +132,7 @@ void AtomVecMesoe::copy(int i, int j, int delflag) {
   e[j] = e[i];
   de[j] = de[i];
   cv[j] = cv[i];
-  mu[j] = mu[i];
+  smu[j] = smu[i];
   vest[j][0] = vest[i][0];
   vest[j][1] = vest[i][1];
   vest[j][2] = vest[i][2];
@@ -161,7 +161,7 @@ int AtomVecMesoe::pack_comm_hybrid(int n, int *list, double *buf) {
     j = list[i];
     buf[m++] = rho[j];
     buf[m++] = e[j];
-    buf[m++] = mu[j];
+    buf[m++] = smu[j];
     buf[m++] = vest[j][0];
     buf[m++] = vest[j][1];
     buf[m++] = vest[j][2];
@@ -180,7 +180,7 @@ int AtomVecMesoe::unpack_comm_hybrid(int n, int first, double *buf) {
   for (i = first; i < last; i++) {
     rho[i] = buf[m++];
     e[i] = buf[m++];
-    mu[i] = buf[m++];
+    smu[i] = buf[m++];
     vest[i][0] = buf[m++];
     vest[i][1] = buf[m++];
     vest[i][2] = buf[m++];
@@ -199,7 +199,7 @@ int AtomVecMesoe::pack_border_hybrid(int n, int *list, double *buf) {
     j = list[i];
     buf[m++] = rho[j];
     buf[m++] = e[j];
-    buf[m++] = mu[j];
+    buf[m++] = smu[j];
     buf[m++] = vest[j][0];
     buf[m++] = vest[j][1];
     buf[m++] = vest[j][2];
@@ -218,7 +218,7 @@ int AtomVecMesoe::unpack_border_hybrid(int n, int first, double *buf) {
   for (i = first; i < last; i++) {
     rho[i] = buf[m++];
     e[i] = buf[m++];
-    mu[i] = buf[m++];
+    smu[i] = buf[m++];
     vest[i][0] = buf[m++];
     vest[i][1] = buf[m++];
     vest[i][2] = buf[m++];
@@ -273,7 +273,7 @@ int AtomVecMesoe::pack_comm(int n, int *list, double *buf, int pbc_flag,
       buf[m++] = x[j][2];
       buf[m++] = rho[j];
       buf[m++] = e[j];
-      buf[m++] = mu[j];
+      buf[m++] = smu[j];
       buf[m++] = vest[j][0];
       buf[m++] = vest[j][1];
       buf[m++] = vest[j][2];
@@ -295,7 +295,7 @@ int AtomVecMesoe::pack_comm(int n, int *list, double *buf, int pbc_flag,
       buf[m++] = x[j][2] + dz;
       buf[m++] = rho[j];
       buf[m++] = e[j];
-      buf[m++] = mu[j];
+      buf[m++] = smu[j];
       buf[m++] = vest[j][0];
       buf[m++] = vest[j][1];
       buf[m++] = vest[j][2];
@@ -324,7 +324,7 @@ int AtomVecMesoe::pack_comm_vel(int n, int *list, double *buf, int pbc_flag,
       buf[m++] = v[j][2];
       buf[m++] = rho[j];
       buf[m++] = e[j];
-      buf[m++] = mu[j];
+      buf[m++] = smu[j];
       buf[m++] = vest[j][0];
       buf[m++] = vest[j][1];
       buf[m++] = vest[j][2];
@@ -349,7 +349,7 @@ int AtomVecMesoe::pack_comm_vel(int n, int *list, double *buf, int pbc_flag,
       buf[m++] = v[j][2];
       buf[m++] = rho[j];
       buf[m++] = e[j];
-      buf[m++] = mu[j];
+      buf[m++] = smu[j];
       buf[m++] = vest[j][0];
       buf[m++] = vest[j][1];
       buf[m++] = vest[j][2];
@@ -372,7 +372,7 @@ void AtomVecMesoe::unpack_comm(int n, int first, double *buf) {
     x[i][2] = buf[m++];
     rho[i] = buf[m++];
     e[i] = buf[m++];
-    mu[i] = buf[m++];
+    smu[i] = buf[m++];
     vest[i][0] = buf[m++];
     vest[i][1] = buf[m++];
     vest[i][2] = buf[m++];
@@ -396,7 +396,7 @@ void AtomVecMesoe::unpack_comm_vel(int n, int first, double *buf) {
     v[i][2] = buf[m++];
     rho[i] = buf[m++];
     e[i] = buf[m++];
-    mu[i] = buf[m++];
+    smu[i] = buf[m++];
     vest[i][0] = buf[m++];
     vest[i][1] = buf[m++];
     vest[i][2] = buf[m++];
@@ -460,7 +460,7 @@ int AtomVecMesoe::pack_border(int n, int *list, double *buf, int pbc_flag,
       buf[m++] = rho[j];
       buf[m++] = e[j];
       buf[m++] = cv[j];
-      buf[m++] = mu[j];
+      buf[m++] = smu[j];
       buf[m++] = vest[j][0];
       buf[m++] = vest[j][1];
       buf[m++] = vest[j][2];
@@ -487,7 +487,7 @@ int AtomVecMesoe::pack_border(int n, int *list, double *buf, int pbc_flag,
       buf[m++] = rho[j];
       buf[m++] = e[j];
       buf[m++] = cv[j];
-      buf[m++] = mu[j];
+      buf[m++] = smu[j];
       buf[m++] = vest[j][0];
       buf[m++] = vest[j][1];
       buf[m++] = vest[j][2];
@@ -526,7 +526,7 @@ int AtomVecMesoe::pack_border_vel(int n, int *list, double *buf, int pbc_flag,
       buf[m++] = rho[j];
       buf[m++] = e[j];
       buf[m++] = cv[j];
-      buf[m++] = mu[j];
+      buf[m++] = smu[j];
       buf[m++] = vest[j][0];
       buf[m++] = vest[j][1];
       buf[m++] = vest[j][2];
@@ -557,7 +557,7 @@ int AtomVecMesoe::pack_border_vel(int n, int *list, double *buf, int pbc_flag,
         buf[m++] = rho[j];
         buf[m++] = e[j];
         buf[m++] = cv[j];
-        buf[m++] = mu[j];
+        buf[m++] = smu[j];
         buf[m++] = vest[j][0];
         buf[m++] = vest[j][1];
         buf[m++] = vest[j][2];
@@ -593,7 +593,7 @@ int AtomVecMesoe::pack_border_vel(int n, int *list, double *buf, int pbc_flag,
         buf[m++] = rho[j];
         buf[m++] = e[j];
         buf[m++] = cv[j];
-        buf[m++] = mu[j];
+        buf[m++] = smu[j];
       }
     }
   }
@@ -626,7 +626,7 @@ void AtomVecMesoe::unpack_border(int n, int first, double *buf) {
     rho[i] = buf[m++];
     e[i] = buf[m++];
     cv[i] = buf[m++];
-    mu[i] = buf[m++];
+    smu[i] = buf[m++];
     vest[i][0] = buf[m++];
     vest[i][1] = buf[m++];
     vest[i][2] = buf[m++];
@@ -665,7 +665,7 @@ void AtomVecMesoe::unpack_border_vel(int n, int first, double *buf) {
     rho[i] = buf[m++];
     e[i] = buf[m++];
     cv[i] = buf[m++];
-    mu[i] = buf[m++];
+    smu[i] = buf[m++];
   }
 
   if (atom->nextra_border)
@@ -696,7 +696,7 @@ int AtomVecMesoe::pack_exchange(int i, double *buf) {
   buf[m++] = rho[i];
   buf[m++] = e[i];
   buf[m++] = cv[i];
-  buf[m++] = mu[i];
+  buf[m++] = smu[i];
   buf[m++] = vest[i][0];
   buf[m++] = vest[i][1];
   buf[m++] = vest[i][2];
@@ -732,7 +732,7 @@ int AtomVecMesoe::unpack_exchange(double *buf) {
   rho[nlocal] = buf[m++];
   e[nlocal] = buf[m++];
   cv[nlocal] = buf[m++];
-  mu[nlocal] = buf[m++];
+  smu[nlocal] = buf[m++];
   vest[nlocal][0] = buf[m++];
   vest[nlocal][1] = buf[m++];
   vest[nlocal][2] = buf[m++];
@@ -755,7 +755,7 @@ int AtomVecMesoe::size_restart() {
   int i;
 
   int nlocal = atom->nlocal;
-  int n = 19 * nlocal; // 11 + q+ rho + e + cv + mu + vest[3]
+  int n = 19 * nlocal; // 11 + q+ rho + e + cv + smu + vest[3]
 
   if (atom->nextra_restart)
     for (int iextra = 0; iextra < atom->nextra_restart; iextra++)
@@ -787,7 +787,7 @@ int AtomVecMesoe::pack_restart(int i, double *buf) {
   buf[m++] = rho[i];
   buf[m++] = e[i];
   buf[m++] = cv[i];
-  buf[m++] = mu[i];
+  buf[m++] = smu[i];
   buf[m++] = vest[i][0];
   buf[m++] = vest[i][1];
   buf[m++] = vest[i][2];
@@ -827,7 +827,7 @@ int AtomVecMesoe::unpack_restart(double *buf) {
   rho[nlocal] = buf[m++];
   e[nlocal] = buf[m++];
   cv[nlocal] = buf[m++];
-  mu[nlocal] = buf[m++];
+  smu[nlocal] = buf[m++];
   vest[nlocal][0] = buf[m++];
   vest[nlocal][1] = buf[m++];
   vest[nlocal][2] = buf[m++];
@@ -868,7 +868,7 @@ void AtomVecMesoe::create_atom(int itype, double *coord) {
   rho[nlocal] = 0.0;
   e[nlocal] = 0.0;
   cv[nlocal] = 1.0;
-  mu[nlocal] = 0.0;
+  smu[nlocal] = 0.0;
   vest[nlocal][0] = 0.0;
   vest[nlocal][1] = 0.0;
   vest[nlocal][2] = 0.0;
@@ -892,9 +892,11 @@ void AtomVecMesoe::data_atom(double *coord, imageint imagetmp, char **values) {
   if (type[nlocal] <= 0 || type[nlocal] > atom->ntypes)
     error->one(FLERR,"Invalid atom type in Atoms section of data file");
 
-  rho[nlocal] = atof(values[2]);
-  e[nlocal] = atof(values[3]);
-  cv[nlocal] = atof(values[4]);
+  q[nlocal] = atof(values[2])
+  rho[nlocal] = atof(values[3]);
+  e[nlocal] = atof(values[4]);
+  cv[nlocal] = atof(values[5]);
+  smu[nlocal] = atof(values[6])
 
   x[nlocal][0] = coord[0];
   x[nlocal][1] = coord[1];
@@ -926,9 +928,11 @@ void AtomVecMesoe::data_atom(double *coord, imageint imagetmp, char **values) {
 
 int AtomVecMesoe::data_atom_hybrid(int nlocal, char **values) {
 
-  rho[nlocal] = atof(values[0]);
-  e[nlocal] = atof(values[1]);
-  cv[nlocal] = atof(values[2]);
+  q[nlocal] = atof(values[0])
+  rho[nlocal] = atof(values[1]);
+  e[nlocal] = atof(values[2]);
+  cv[nlocal] = atof(values[3]);
+  smu[nlocal] = atof(values[4]);
 
   return 3;
 }
@@ -943,15 +947,17 @@ void AtomVecMesoe::pack_data(double **buf)
   for (int i = 0; i < nlocal; i++) {
     buf[i][0] = ubuf(tag[i]).d;
     buf[i][1] = ubuf(type[i]).d;
-    buf[i][2] = rho[i];
-    buf[i][3] = e[i];
-    buf[i][4] = cv[i];
-    buf[i][5] = x[i][0];
-    buf[i][6] = x[i][1];
-    buf[i][7] = x[i][2];
-    buf[i][8] = ubuf((image[i] & IMGMASK) - IMGMAX).d;
-    buf[i][9] = ubuf((image[i] >> IMGBITS & IMGMASK) - IMGMAX).d;
-    buf[i][10] = ubuf((image[i] >> IMG2BITS) - IMGMAX).d;
+    buf[i][2] = q[i];
+    buf[i][3] = rho[i];
+    buf[i][4] = e[i];
+    buf[i][5] = cv[i];
+    buf[i][6] = smu[i];
+    buf[i][7] = x[i][0];
+    buf[i][8] = x[i][1];
+    buf[i][9] = x[i][2];
+    buf[i][10] = ubuf((image[i] & IMGMASK) - IMGMAX).d;
+    buf[i][11] = ubuf((image[i] >> IMGBITS & IMGMASK) - IMGMAX).d;
+    buf[i][12] = ubuf((image[i] >> IMG2BITS) - IMGMAX).d;
   }
 }
 
@@ -961,10 +967,12 @@ void AtomVecMesoe::pack_data(double **buf)
 
 int AtomVecMesoe::pack_data_hybrid(int i, double *buf)
 {
-  buf[0] = rho[i];
-  buf[1] = e[i];
-  buf[2] = cv[i];
-  return 3;
+  buf[0] = q[i];
+  buf[1] = rho[i];
+  buf[2] = e[i];
+  buf[3] = cv[i];
+  buf[4] = smu[i];
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
@@ -975,13 +983,14 @@ void AtomVecMesoe::write_data(FILE *fp, int n, double **buf)
 {
   for (int i = 0; i < n; i++)
     fprintf(fp,TAGINT_FORMAT
-            " %d %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e "
+            " %d %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e"
             "%d %d %d\n",
             (tagint) ubuf(buf[i][0]).i,(int) ubuf(buf[i][1]).i,
             buf[i][2],buf[i][3],buf[i][4],
             buf[i][5],buf[i][6],buf[i][7],
-            (int) ubuf(buf[i][8]).i,(int) ubuf(buf[i][9]).i,
-            (int) ubuf(buf[i][10]).i);
+            buf[i][8], buf[i][9],
+            (int) ubuf(buf[i][10]).i,(int) ubuf(buf[i][11]).i,
+            (int) ubuf(buf[i][12]).i);
 }
 
 /* ----------------------------------------------------------------------
@@ -990,8 +999,9 @@ void AtomVecMesoe::write_data(FILE *fp, int n, double **buf)
 
 int AtomVecMesoe::write_data_hybrid(FILE *fp, double *buf)
 {
-  fprintf(fp," %-1.16e %-1.16e %-1.16e",buf[0],buf[1],buf[2]);
-  return 3;
+  fprintf(fp," %-1.16e %-1.16e %-1.16e %-1.16e %-1.16e", buf[0],buf[1],buf[2],
+          buf[3], buf[4]);
+  return 5;
 }
 
 /* ----------------------------------------------------------------------
@@ -1001,11 +1011,13 @@ int AtomVecMesoe::write_data_hybrid(FILE *fp, double *buf)
 
 int AtomVecMesoe::property_atom(char *name)
 {
-  if (strcmp(name,"rho") == 0) return 0;
-  if (strcmp(name,"drho") == 0) return 1;
-  if (strcmp(name,"e") == 0) return 2;
-  if (strcmp(name,"de") == 0) return 3;
-  if (strcmp(name,"cv") == 0) return 4;
+  if (strcmp(name, "q") == 0) return 0;
+  if (strcmp(name,"rho") == 0) return 1;
+  if (strcmp(name,"drho") == 0) return 2;
+  if (strcmp(name,"e") == 0) return 3;
+  if (strcmp(name,"de") == 0) return 4;
+  if (strcmp(name,"cv") == 0) return 5;
+  if (strcmp(name, "smu") == 0) return 6;
   return -1;
 }
 
@@ -1023,33 +1035,44 @@ void AtomVecMesoe::pack_property_atom(int index, double *buf,
 
   if (index == 0) {
     for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit) buf[n] = rho[i];
+      if (mask[i] & groupbit) buf[n] = q[i];
       else buf[n] = 0.0;
       n += nvalues;
     }
-  } else if (index == 1) {
+  }
+  if (index == 1) {
     for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit) buf[n] = drho[i];
+      if (mask[i] & groupbit) buf[n] = rho[i];
       else buf[n] = 0.0;
       n += nvalues;
     }
   } else if (index == 2) {
     for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit) buf[n] = e[i];
+      if (mask[i] & groupbit) buf[n] = drho[i];
       else buf[n] = 0.0;
       n += nvalues;
     }
   } else if (index == 3) {
     for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit) buf[n] = de[i];
+      if (mask[i] & groupbit) buf[n] = e[i];
       else buf[n] = 0.0;
       n += nvalues;
     }
   } else if (index == 4) {
     for (int i = 0; i < nlocal; i++) {
+      if (mask[i] & groupbit) buf[n] = de[i];
+      else buf[n] = 0.0;
+      n += nvalues;
+    }
+  } else if (index == 5) {
+    for (int i = 0; i < nlocal; i++) {
       if (mask[i] & groupbit) buf[n] = cv[i];
       else buf[n] = 0.0;
       n += nvalues;
+    }
+  } else if (index == 6) {
+    for (int i = 0; i < nlocal; i++) {
+      if (mask[i] & groupbit) buf[n] = smu[i];
     }
   }
 }
@@ -1075,6 +1098,8 @@ bigint AtomVecMesoe::memory_usage() {
     bytes += memory->usage(v, nmax, 3);
   if (atom->memcheck("f"))
     bytes += memory->usage(f, nmax*comm->nthreads, 3);
+  if (atom->memcheck("q"))
+    bytes += memory->usage(q, nmax);
   if (atom->memcheck("rho"))
     bytes += memory->usage(rho, nmax);
   if (atom->memcheck("drho"))
@@ -1085,6 +1110,8 @@ bigint AtomVecMesoe::memory_usage() {
     bytes += memory->usage(de, nmax*comm->nthreads);
   if (atom->memcheck("cv"))
     bytes += memory->usage(cv, nmax);
+  if (atom->memcheck("smu"))
+    bytes += memory->usage(smu, nmax);
   if (atom->memcheck("vest"))
     bytes += memory->usage(vest, nmax);
 
