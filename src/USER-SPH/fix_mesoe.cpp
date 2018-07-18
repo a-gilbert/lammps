@@ -15,7 +15,7 @@
 #include <cstring>
 #include <cmath>
 #include <cstdlib>
-#include "fix_meso.h"
+#include "fix_mesoe.h"
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
@@ -73,7 +73,7 @@ void FixMesoe::init() {
   The function that returns zero when we've reached
   the correct heat capacity
   -----------------------------------------*/
-FixMesoe::f(double cv, double rho, double e, double nkb, double alpha)
+double FixMesoe::f(double cv, double rho, double e, double nkb, double alpha)
 {
   double x = alpha*rho*pow(cv/e, 1.5);
   double y = arcih(x);
@@ -92,12 +92,11 @@ heat capacity in a given unit system.
 double FixMesoe::solve_cv(double rho, double e, double mass)
 {
   double out, alpha, nkb, cv_u, cv_l, fu, fl, cv_r, fr, cond;
-
-  alpha = Force->hplanck/MY_2PI;
+  alpha = (*lmp->force).hplanck/MathConst::MY_2PI;
   alpha = alpha*alpha;
-  alpha = 0.5*alpha/(Force->e_mass * Force->boltz);
+  alpha = 0.5*alpha/((*lmp->force).e_mass * (*lmp->force).boltz);
   alpha = pow(alpha, 1.5);
-  alpha = 2*MY_PI*MY_PI*alpha;
+  alpha = 2*MathConst::MY_PI*MathConst::MY_PI*alpha;
 
   cv_u = 10;
   cv_l = 1e-10;
@@ -116,10 +115,10 @@ double FixMesoe::solve_cv(double rho, double e, double mass)
     }
   }
 
-  cond = 1
-  for(int i = 1, i < 20 && cond != 0, i++) {
+  cond = 1;
+  for(int i = 1; i < 20 && cond != 0; i++) {
     cv_r = cv_u*fl - cv_l*fu;
-    cv_r = xr/(fl - fu);
+    cv_r = cv_r/(fl - fu);
     fr = f(cv_r, rho, e, nkb, alpha);
     cond = fl*fr;
     if (cond < 0) {
@@ -143,11 +142,11 @@ double FixMesoe::solve_cv(double rho, double e, double mass)
 double FixMesoe::get_mu(double rho, double e, double cv) {
   double mu, alpha, x;
 
-  alpha = Force->hplanck/MY_2PI;
+  alpha = (*lmp->force).hplanck/MathConst::MY_2PI;
   alpha = alpha*alpha;
-  alpha = 0.5*alpha/(Force->e_mass * Force->boltz);
+  alpha = 0.5*alpha/((*lmp->force).e_mass * (*lmp->force).boltz);
   alpha = pow(alpha, 1.5);
-  alpha = 2*MY_PI*MY_PI*alpha;
+  alpha = 2*MathConst::MY_PI*MathConst::MY_PI*alpha;
 
   x = alpha * rho * pow(cv/e, 1.5);
   mu = arcih(x);
@@ -167,6 +166,7 @@ void FixMesoe::setup_pre_force(int vflag)
   int *mask = atom->mask;
   double *mass = atom->mass;
   double *rmass = atom->rmass;
+  int *type = atom->type;
   int rmass_flag = atom->rmass_flag;
   int nlocal = atom->nlocal;
   double pmass;
@@ -184,7 +184,7 @@ void FixMesoe::setup_pre_force(int vflag)
       vest[i][1] = v[i][1];
       vest[i][2] = v[i][2];
       cv[i] = solve_cv(rho[i], e[i], pmass);
-      smu[i] = get_mu(0, rho[i], e[i], cv[i]);
+      smu[i] = get_mu(rho[i], e[i], cv[i]);
     }
   }
 }

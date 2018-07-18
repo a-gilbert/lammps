@@ -47,7 +47,7 @@ enum{TYPE,TYPE_FRACTION,MOLECULE,X,Y,Z,CHARGE,MASS,SHAPE,LENGTH,TRI,
      DIPOLE,DIPOLE_RANDOM,SPIN,SPIN_RANDOM,QUAT,QUAT_RANDOM,
      THETA,THETA_RANDOM,ANGMOM,OMEGA,
      DIAMETER,DENSITY,VOLUME,IMAGE,BOND,ANGLE,DIHEDRAL,IMPROPER,
-     MESO_E,MESO_CV,MESO_RHO,EDPD_TEMP,EDPD_CV,CC,SMD_MASS_DENSITY,
+     MESO_E,MESO_CV,MESO_RHO,MESO_SMU,EDPD_TEMP,EDPD_CV,CC,SMD_MASS_DENSITY,
      SMD_CONTACT_RADIUS,DPDTHETA,INAME,DNAME};
 
 #define BIG INT_MAX
@@ -449,7 +449,14 @@ void Set::command(int narg, char **arg)
         error->all(FLERR,"Cannot set meso/rho for this atom style");
       set(MESO_RHO);
       iarg += 2;
-
+    } else if (strcmp(arg[iarg],"meso/smu") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal set command");
+      if (strstr(arg[iarg+1],"v_") == arg[iarg+1]) varparse(arg[iarg+1],1);
+      else dvalue = force->numeric(FLERR,arg[iarg+1]);
+      if (!atom->smu_flag)
+        error->all(FLERR,"Cannot set meso/e for this atom style");
+      set(MESO_SMU);
+      iarg += 2;
     } else if (strcmp(arg[iarg],"edpd/temp") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal set command");
       if (strcmp(arg[iarg+1],"NULL") == 0) dvalue = -1.0;
@@ -748,6 +755,7 @@ void Set::set(int keyword)
     else if (keyword == MESO_E) atom->e[i] = dvalue;
     else if (keyword == MESO_CV) atom->cv[i] = dvalue;
     else if (keyword == MESO_RHO) atom->rho[i] = dvalue;
+    else if (keyword == MESO_SMU) atom->smu[i] = dvalue;
 
     else if (keyword == EDPD_TEMP) atom->edpd_temp[i] = dvalue;
     else if (keyword == EDPD_CV) atom->edpd_cv[i] = dvalue;

@@ -21,8 +21,8 @@ AtomStyle(mesoe,AtomVecMesoe)
 
 #else
 
-#ifndef LMP_ATOM_VEC_MESO_H
-#define LMP_ATOM_VEC_MESO_H
+#ifndef LMP_ATOM_VEC_MESOE_H
+#define LMP_ATOM_VEC_MESOE_H
 
 #include "atom_vec.h"
 

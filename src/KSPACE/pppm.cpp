@@ -1295,8 +1295,8 @@ void PPPM::adjust_gewald()
   }
 
   char str[128];
-  sprintf(str, "Could not compute g_ewald");
-  error->all(FLERR, str);
+  sprintf(str, "Could not compute optimal g_ewald");
+  //error->all(FLERR, str);
 }
 
 /* ----------------------------------------------------------------------

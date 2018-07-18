@@ -82,7 +82,7 @@ void AtomVecMesoe::grow(int n)
   de = memory->grow(atom->de, nmax*comm->nthreads, "atom:de");
   vest = memory->grow(atom->vest, nmax, 3, "atom:vest");
   cv = memory->grow(atom->cv, nmax, "atom:cv");
-  sph_mu = memory->grow(atom->smu, nmax, "atom:smu");
+  smu = memory->grow(atom->smu, nmax, "atom:smu");
 
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
@@ -892,11 +892,11 @@ void AtomVecMesoe::data_atom(double *coord, imageint imagetmp, char **values) {
   if (type[nlocal] <= 0 || type[nlocal] > atom->ntypes)
     error->one(FLERR,"Invalid atom type in Atoms section of data file");
 
-  q[nlocal] = atof(values[2])
+  q[nlocal] = atof(values[2]);
   rho[nlocal] = atof(values[3]);
   e[nlocal] = atof(values[4]);
   cv[nlocal] = atof(values[5]);
-  smu[nlocal] = atof(values[6])
+  smu[nlocal] = atof(values[6]);
 
   x[nlocal][0] = coord[0];
   x[nlocal][1] = coord[1];
@@ -928,7 +928,7 @@ void AtomVecMesoe::data_atom(double *coord, imageint imagetmp, char **values) {
 
 int AtomVecMesoe::data_atom_hybrid(int nlocal, char **values) {
 
-  q[nlocal] = atof(values[0])
+  q[nlocal] = atof(values[0]);
   rho[nlocal] = atof(values[1]);
   e[nlocal] = atof(values[2]);
   cv[nlocal] = atof(values[3]);

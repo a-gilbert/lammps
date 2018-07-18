@@ -48,13 +48,13 @@ PairSPHEGas::~PairSPHEGas() {
 
 double PairSPHEGas::get_pressure(double e, double cv, double mu) {
   double alpha, p;
-  alpha = Force->hplanck/MY_2PI;
+  alpha = (*lmp->force).hplanck/MathConst::MY_2PI;
   alpha = alpha*alpha;
-  alpha = 0.5*alpha/(Force->e_mass * Force->boltz);
+  alpha = 0.5*alpha/((*lmp->force).e_mass * (*lmp->force).boltz);
   alpha = pow(alpha, 1.5);
-  alpha = 2*MY_Pi*MY_PI*alpha;
+  alpha = 2*MathConst::MY_PI*MathConst::MY_PI*alpha;
 
-  p = 2.0*Force->boltz/(3.0*alpha);
+  p = 2.0*(*lmp->force).boltz/(3.0*alpha);
   p = p * pow(e/cv, 2.5);
   p = p*FDINT::i3h(mu);
   return p;
@@ -112,7 +112,7 @@ void PairSPHEGas::compute(int eflag, int vflag) {
     imass = mass[itype];
 
 
-    fi = get_pressure(e[i], cv[i], mu[i])/(rho[i] * rho[i]);  //fermi gas EOS;
+    fi = get_pressure(e[i], cv[i], smu[i])/(rho[i] * rho[i]);  //fermi gas EOS;
     //ci = sqrt(0.4*e[i]/imass); // speed of sound with heat capacity ratio gamma=1.4
 
     for (jj = 0; jj < jnum; jj++) {
@@ -146,7 +146,7 @@ void PairSPHEGas::compute(int eflag, int vflag) {
         }
 
 
-        fj = get_pressure(e[j], cv[j], mu[j])/(rho[j] * rho[j]);
+        fj = get_pressure(e[j], cv[j], smu[j])/(rho[j] * rho[j]);
         // dot product of velocity delta and distance vector
         delVdotDelR = delx * (vxtmp - v[j][0]) + dely * (vytmp - v[j][1])
             + delz * (vztmp - v[j][2]);
