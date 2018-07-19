@@ -48,7 +48,7 @@ enum{TYPE,TYPE_FRACTION,MOLECULE,X,Y,Z,CHARGE,MASS,SHAPE,LENGTH,TRI,
      THETA,THETA_RANDOM,ANGMOM,OMEGA,
      DIAMETER,DENSITY,VOLUME,IMAGE,BOND,ANGLE,DIHEDRAL,IMPROPER,
      MESO_E,MESO_CV,MESO_RHO,EDPD_TEMP,EDPD_CV,CC,SMD_MASS_DENSITY,
-     SMD_CONTACT_RADIUS,DPDTHETA,INAME,DNAME};
+     SMD_CONTACT_RADIUS,DPDTHETA,INAME,DNAME, TEMP};
 
 #define BIG INT_MAX
 
@@ -745,7 +745,8 @@ void Set::set(int keyword)
       if (dvalue <= 0.0) error->one(FLERR,"Invalid mass in set command");
       atom->rmass[i] = dvalue;
     }
-    else if (keyword == CHARGE) atom->temp[i] = dvalue;
+
+    else if (keyword == TEMP) atom->temp[i] = dvalue;
     else if (keyword == DIAMETER) {
       if (dvalue < 0.0) error->one(FLERR,"Invalid diameter in set command");
       atom->radius[i] = 0.5 * dvalue;
