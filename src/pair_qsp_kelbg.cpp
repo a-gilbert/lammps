@@ -59,7 +59,7 @@ double j1(double x, double xi) {
   return out;
 }
 
-double get_j1(double xi) {
+double PairQspKelbg::get_j1(double xi) {
   static const double nodes[] = {0.6170308532782703957143,
                                  2.112965958578524151141,
                                  4.610833151017532413683,
