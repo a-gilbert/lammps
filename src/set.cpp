@@ -158,6 +158,14 @@ void Set::command(int narg, char **arg)
         error->all(FLERR,"Cannot set this attribute for this atom style");
       set(MASS);
       iarg += 2;
+    } else if (strcmp(arg[iarg],"temp") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal set command");
+      if (strstr(arg[iarg+1],"v_") == arg[iarg+1]) varparse(arg[iarg+1],1);
+      else dvalue = force->numeric(FLERR,arg[iarg+1]);
+      if (!atom->temp_flag)
+        error->all(FLERR,"Cannot set this attribute for this atom style");
+      set(TEMP);
+      iarg += 2;
 
     } else if (strcmp(arg[iarg],"shape") == 0) {
       if (iarg+4 > narg) error->all(FLERR,"Illegal set command");
@@ -737,6 +745,7 @@ void Set::set(int keyword)
       if (dvalue <= 0.0) error->one(FLERR,"Invalid mass in set command");
       atom->rmass[i] = dvalue;
     }
+    else if (keyword == CHARGE) atom->temp[i] = dvalue;
     else if (keyword == DIAMETER) {
       if (dvalue < 0.0) error->one(FLERR,"Invalid diameter in set command");
       atom->radius[i] = 0.5 * dvalue;

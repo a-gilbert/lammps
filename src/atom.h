@@ -106,6 +106,9 @@ class Atom : protected Pointers {
   double *edpd_cv;               // heat capacity
   int cc_species;
 
+  //tcharge atom style
+  double *temp;
+
   // molecular info
 
   int **nspecial;               // 0,1,2 = cumulative # of 1-2,1-3,1-4 neighs
@@ -150,6 +153,8 @@ class Atom : protected Pointers {
   int cs_flag,csforce_flag,vforce_flag,ervelforce_flag,etag_flag;
   int rho_flag,e_flag,cv_flag,vest_flag;
   int dpd_flag,edpd_flag,tdpd_flag;
+  //tcharge atom style
+  int temp_flag;
 
   //USER-SPIN package
 
@@ -165,6 +170,7 @@ class Atom : protected Pointers {
   int eff_plastic_strain_flag;
   int eff_plastic_strain_rate_flag;
   int damage_flag;
+
 
   // Peridynamics scale factor, used by dump cfg
 

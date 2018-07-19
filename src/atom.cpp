@@ -120,6 +120,9 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   eff_plastic_strain_rate = NULL;
   damage = NULL;
 
+  //tcharge atom style
+  temp = NULL;
+
   // molecular info
 
   bond_per_atom =  extra_bond_per_atom = 0;
@@ -169,6 +172,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   omega_flag = torque_flag = angmom_flag = 0;
   radius_flag = rmass_flag = 0;
   ellipsoid_flag = line_flag = tri_flag = body_flag = 0;
+  temp_flag = 0;
 
   // magnetic flags
 
@@ -274,6 +278,8 @@ Atom::~Atom()
   memory->destroy(line);
   memory->destroy(tri);
   memory->destroy(body);
+
+  memory->destroy(temp);
 
   memory->destroy(sp);
   memory->destroy(fm);
@@ -429,6 +435,8 @@ void Atom::create_avec(const char *style, int narg, char **arg, int trysuffix)
   omega_flag = torque_flag = angmom_flag = 0;
   radius_flag = rmass_flag = 0;
   ellipsoid_flag = line_flag = tri_flag = body_flag = 0;
+
+  temp_flag = 0;
 
   // magnetic flags
 
