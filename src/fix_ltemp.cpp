@@ -55,8 +55,8 @@ int FixLTemp::setmask() {
 
 void FixLTemp::setup_pre_force(int vflag)
 {
-  // set vest equal to v
-  int i, j, k;
+  // set local temp
+  int i, j, k, itype, jtype;
   double r, vrms, v2, ri, imass;
   int n_neigh;
   double kb = force->boltz;
@@ -64,6 +64,7 @@ void FixLTemp::setup_pre_force(int vflag)
   double **x = atom->x;
   double *temp = atom->temp;
   double *mass = atom->mass;
+  int *type = atom->type;
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
 
@@ -73,7 +74,8 @@ void FixLTemp::setup_pre_force(int vflag)
     if (mask[i] & groupbit) {
       vrms = 0;
       n_neigh = 0;
-      imass = mass[i];
+      itype = type[i];
+      imass = mass[itype];
       for(j = 0; j < nlocal; j++) {
           if(mask[j] & groupbit) {
             r = 0;

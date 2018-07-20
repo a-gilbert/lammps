@@ -32,7 +32,6 @@ using namespace MathConst;
 
 PairQspKelbg::PairQspKelbg(LAMMPS *lmp) : Pair(lmp)
 {
-  ewaldflag = pppmflag = 1;
   writedata = 1;
 }
 
@@ -204,7 +203,7 @@ void PairQspKelbg::allocate() {
     for (int j = i; j <= n; j++)
       setflag[i][j] = 0;
 
-
+  memory->create(cutsq, n+1, n+1, "pair:cutsq");
   memory->create(cut_kelbgsq, n+1,n+1,"pair:cut_kelbgsq");
   memory->create(on,n+1,n+1,"pair:on");
   memory->create(style,n+1,n+1,"pair:style");
@@ -285,10 +284,6 @@ void PairQspKelbg::init_style()
   if (!atom->q_flag && !atom->temp_flag)
     error->all(FLERR,"Pair style qsp/kelbg requires atom attribute q and temp.");
 
-  // insure use of KSpace long-range solver, set g_ewald
-
-  if (force->kspace == NULL)
-    error->all(FLERR,"Pair style requires a KSpace style");
   neighbor->request(this,instance_me);
 }
 

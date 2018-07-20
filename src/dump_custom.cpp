@@ -43,7 +43,7 @@ enum{ID,MOL,PROC,PROCP1,TYPE,ELEMENT,MASS,
      Q,MUX,MUY,MUZ,MU,RADIUS,DIAMETER,
      OMEGAX,OMEGAY,OMEGAZ,ANGMOMX,ANGMOMY,ANGMOMZ,
      TQX,TQY,TQZ,
-     COMPUTE,FIX,VARIABLE,INAME,DNAME};
+     COMPUTE,FIX,VARIABLE,INAME,DNAME, TEMP};
 enum{LT,LE,GT,GE,EQ,NEQ,XOR};
 
 #define INVOKED_PERATOM 8
@@ -815,6 +815,13 @@ int DumpCustom::count()
                      "Threshold for an atom property that isn't allocated");
         ptr = atom->q;
         nstride = 1;
+      } else if (thresh_array[ithresh] == TEMP) {
+        if (!atom->temp_flag)
+          error->all(FLERR,
+                     "Threshold for an atom property that isn't allocated");
+        ptr = atom->temp;
+        nstride = 1;
+
       } else if (thresh_array[ithresh] == MUX) {
         if (!atom->mu_flag)
           error->all(FLERR,
@@ -1261,6 +1268,12 @@ int DumpCustom::parse_fields(int narg, char **arg)
         error->all(FLERR,"Dumping an atom property that isn't allocated");
       pack_choice[i] = &DumpCustom::pack_q;
       vtype[i] = Dump::DOUBLE;
+    } else if (strcmp(arg[iarg],"temp") == 0) {
+      if (!atom->temp_flag)
+        error->all(FLERR,"Dumping an atom property that isn't allocated");
+      pack_choice[i] = &DumpCustom::pack_temp;
+      vtype[i] = Dump::DOUBLE;
+
     } else if (strcmp(arg[iarg],"mux") == 0) {
       if (!atom->mu_flag)
         error->all(FLERR,"Dumping an atom property that isn't allocated");
@@ -1780,6 +1793,7 @@ int DumpCustom::modify_param(int narg, char **arg)
     else if (strcmp(arg[1],"fz") == 0) thresh_array[nthresh] = FZ;
 
     else if (strcmp(arg[1],"q") == 0) thresh_array[nthresh] = Q;
+    else if (strcmp(arg[1],"temp") == 0) thresh_array[nthresh] = TEMP;
     else if (strcmp(arg[1],"mux") == 0) thresh_array[nthresh] = MUX;
     else if (strcmp(arg[1],"muy") == 0) thresh_array[nthresh] = MUY;
     else if (strcmp(arg[1],"muz") == 0) thresh_array[nthresh] = MUZ;
@@ -2650,6 +2664,16 @@ void DumpCustom::pack_q(int n)
   }
 }
 
+/* ---------------------------------------------------------------------- */
+void DumpCustom::pack_temp(int n)
+{
+  double *temp = atom->temp;
+
+  for (int i = 0; i < nchoose; i++) {
+    buf[n] = temp[clist[i]];
+    n += size_one;
+  }
+}
 /* ---------------------------------------------------------------------- */
 
 void DumpCustom::pack_mux(int n)

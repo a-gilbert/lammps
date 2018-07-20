@@ -32,7 +32,6 @@ using namespace MathConst;
 
 PairQspF::PairQspF(LAMMPS *lmp) : Pair(lmp)
 {
-  ewaldflag = pppmflag = 1;
   writedata = 1;
 }
 
@@ -140,7 +139,7 @@ void PairQspF::allocate() {
     for (int j = i; j <= n; j++)
       setflag[i][j] = 0;
 
-
+  memory->create(cutsq, n+1, n+1, "pair:cutsq");
   memory->create(cut_fsq, n+1,n+1,"pair:cut_kelbgsq");
   memory->create(on,n+1,n+1,"pair:on");
 }
@@ -205,7 +204,7 @@ double PairQspF::init_one(int i, int j)
   // compute I,J contribution to long-range tail correction
   // count total # of atoms of type I and J via Allreduce
 
-  return cut_fsq[i][j];
+  return sqrt(cut_fsq[i][j]);
 }
 
 /* ----------------------------------------------------------------------
@@ -217,10 +216,6 @@ void PairQspF::init_style()
   if (!atom->q_flag && !atom->temp_flag)
     error->all(FLERR,"Pair style qsp/kelbg requires atom attribute q and temp.");
 
-  // insure use of KSpace long-range solver, set g_ewald
-
-  if (force->kspace == NULL)
-    error->all(FLERR,"Pair style requires a KSpace style");
   neighbor->request(this,instance_me);
 }
 
