@@ -38,7 +38,7 @@ AtomVecTCharge::AtomVecTCharge(LAMMPS *lmp) : AtomVec(lmp)
   size_velocity = 3;
   size_data_atom = 7; //id, type, q, x, y, z, temp
   size_data_vel = 4;
-  xcol_data = 4;
+  xcol_data = 5;
 
   atom->q_flag = 1;
   atom->temp_flag = 1;
@@ -695,7 +695,7 @@ void AtomVecTCharge::data_atom(double *coord, imageint imagetmp, char **values)
   if (type[nlocal] <= 0 || type[nlocal] > atom->ntypes)
     error->one(FLERR,"Invalid atom type in Atoms section of data file");
 
-  q[nlocal] = atof(values[2]);
+  q[nlocal] = atof(values[2])
   temp[nlocal] = atof(values[3]);
 
   x[nlocal][0] = coord[0];

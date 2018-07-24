@@ -32,6 +32,7 @@ using namespace MathConst;
 
 PairQspF::PairQspF(LAMMPS *lmp) : Pair(lmp)
 {
+  ewaldflag = pppmflag = msmflag = 1;
   writedata = 1;
 }
 
