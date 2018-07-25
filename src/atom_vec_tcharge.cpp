@@ -695,7 +695,7 @@ void AtomVecTCharge::data_atom(double *coord, imageint imagetmp, char **values)
   if (type[nlocal] <= 0 || type[nlocal] > atom->ntypes)
     error->one(FLERR,"Invalid atom type in Atoms section of data file");
 
-  q[nlocal] = atof(values[2])
+  q[nlocal] = atof(values[2]);
   temp[nlocal] = atof(values[3]);
 
   x[nlocal][0] = coord[0];
