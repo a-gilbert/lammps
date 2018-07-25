@@ -52,7 +52,7 @@ PairQspKelbg::~PairQspKelbg()
 }
 
 double PairQspKelbg::j1(double x, double xi) {
-  double out = exp(-x*(x-1));
+  double out = x*exp(-x*(x-1));
   double t1 = 1-exp(-1*MY_2PI*MY_PIS*xi/x);
   out = out/t1;
   return out;
