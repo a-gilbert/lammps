@@ -168,7 +168,7 @@ void PairQspKelbg::compute(int eflag, int vflag)
           nusq = get_nu(style[itype][jtype], xi);
           nusq = nusq*nusq;
           s = rsq/lambdasq;
-          fpair = -2*MY_2PI - s;
+          fpair = -2*MY_2PI - (1.0/s);
           s = -1*s*MY_2PI;
           fpair = fpair*exp(s);
           fpair = fpair + 2*MY_2PI*exp(s*nusq);
