@@ -78,23 +78,25 @@ void FixLTemp::setup_pre_force(int vflag)
       imass = mass[itype];
       for(j = 0; j < nlocal; j++) {
           if(mask[j] & groupbit) {
-            r = 0;
-            for(k = 0; k < 3; k++) {
-              ri = (x[i][k] - x[j][k]);
-              ri = ri*ri;
-              r += ri;
-            }
-            r = sqrt(r);
-            if(r < cut) {
-              n_neigh++;
-              v2 = 0;
+            if (itype == type[j]) {
+              r = 0;
               for(k = 0; k < 3; k++) {
-                v2 += v[j][k]*v[j][k];
+                ri = (x[i][k] - x[j][k]);
+                ri = ri*ri;
+                r += ri;
               }
-              vrms += v2;
+              r = sqrt(r);
+              if(r < cut) {
+                n_neigh++;
+                v2 = 0;
+                for(k = 0; k < 3; k++) {
+                  v2 += v[j][k]*v[j][k];
+                }
+                vrms += v2;
+              }
             }
           }
-        }
+      }
       vrms = imass*vrms/(3*kb*n_neigh);
       temp[i] = vrms;
     }
