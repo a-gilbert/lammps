@@ -56,7 +56,7 @@ int FixLTemp::setmask() {
 void FixLTemp::setup_pre_force(int vflag)
 {
   // set local temp
-  int i, j, k, itype, jtype;
+  int i, j, k, itype;
   double r, vrms, v2, ri, imass;
   int n_neigh;
   double kb = force->boltz;
@@ -77,31 +77,28 @@ void FixLTemp::setup_pre_force(int vflag)
       itype = type[i];
       imass = mass[itype];
       for(j = 0; j < nlocal; j++) {
-        jtype = type[j];
-        if(jtype == itype) {
-          if(mask[j] & groupbit) {
-            if (itype == type[j]) {
-              r = 0;
+        if(mask[j] & groupbit) {
+          if(type[j] == itype) {
+            r = 0;
+            for(k = 0; k < 3; k++) {
+              ri = (x[i][k] - x[j][k]);
+              ri = ri*ri;
+              r += ri;
+            }
+            r = sqrt(r);
+            if(r < cut) {
+              n_neigh++;
+              v2 = 0;
               for(k = 0; k < 3; k++) {
-                ri = (x[i][k] - x[j][k]);
-                ri = ri*ri;
-                r += ri;
+                v2 += v[j][k]*v[j][k];
               }
-              r = sqrt(r);
-              if(r < cut) {
-                n_neigh++;
-                v2 = 0;
-                for(k = 0; k < 3; k++) {
-                  v2 += v[j][k]*v[j][k];
-                }
-                vrms += v2;
-              }
+               vrms += v2;
+             }
             }
           }
-      }
+        }
       vrms = imass*vrms/(3*kb*n_neigh);
       temp[i] = vrms;
-      }
     }
   }
 }
