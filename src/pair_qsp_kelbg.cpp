@@ -108,7 +108,7 @@ void PairQspKelbg::compute(int eflag, int vflag)
   int i,j,ii,jj,inum,jnum, itype,jtype;
   double qtmp,xtmp,ytmp,ztmp, delx,dely,delz, fpair;
   double rsq, r2inv, rinv, itemp, teff, s; //extra double s just in case.
-  double xi, lambdasq, nusq;
+  double xi, lambdasq, nusq, en;
   int *ilist,*jlist,*numneigh,**firstneigh;
 
   if (eflag || vflag) ev_setup(eflag,vflag);
@@ -184,6 +184,16 @@ void PairQspKelbg::compute(int eflag, int vflag)
             f[j][2] -= delz*fpair;
           }
 
+          if (eflag) {
+            en = erfc(sqrt(MY_2PI*nusq*rsq/lambdasq));
+            en = MY_PI*sqrt(2*rsq/(nusq*lambdasq))*en;
+            en = en - exp(-1*MY_2PI*rsq/lambdasq);
+            en = qtmp*q[j]*qqrd2e*rinv*en;
+          }
+
+          if (evflag)
+            ev_tally(i, j, nlocal, newton_pair, 0.0, en, fpair,
+                     delx, dely, delz);
         }
       }
     }
