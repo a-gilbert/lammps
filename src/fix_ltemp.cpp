@@ -60,6 +60,7 @@ void FixLTemp::setup_pre_force(int vflag)
   double r, vrms, v2, ri, imass;
   int n_neigh;
   double kb = force->boltz;
+  double mvv2e = force->mvv2e;
   double **v = atom->v;
   double **x = atom->x;
   double *temp = atom->temp;
@@ -97,7 +98,7 @@ void FixLTemp::setup_pre_force(int vflag)
             }
           }
         }
-      vrms = imass*vrms/(3*kb*n_neigh);
+      vrms = mvv2e*imass*vrms/(3*kb*n_neigh);
       temp[i] = vrms;
     }
   }
