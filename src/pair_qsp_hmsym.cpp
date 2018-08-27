@@ -15,7 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "pair_qsp_f.h"
+#include "pair_qsp_hmsym.h"
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
@@ -30,7 +30,7 @@ using namespace MathConst;
 
 /* ---------------------------------------------------------------------- */
 
-PairQspF::PairQspF(LAMMPS *lmp) : Pair(lmp)
+PairQspHMSym::PairQspHMSym(LAMMPS *lmp) : Pair(lmp)
 {
   ewaldflag = pppmflag = msmflag = 1;
   writedata = 1;
@@ -38,26 +38,25 @@ PairQspF::PairQspF(LAMMPS *lmp) : Pair(lmp)
 
 /* ---------------------------------------------------------------------- */
 
-PairQspF::~PairQspF()
+PairQspHMSym::~PairQspHMSym()
 {
   if (!copymode) {
     if (allocated) {
       memory->destroy(setflag);
 
-      memory->destroy(cut_fsq);
+      memory->destroy(cut_hmsq);
       memory->destroy(on);
     }
   }
 }
 
 
-void PairQspF::compute(int eflag, int vflag)
+void PairQspHMSym::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum, itype,jtype;
   double xtmp,ytmp,ztmp, delx,dely,delz,fpair;
-  double rsq, itemp, teff, s; //extra double s just in case.
-  double lambdasq, en;
-  int *ilist,*jlist,*numneigh,**firstneigh;
+  double rsq, lambdasq, itemp, teff, s, en;
+  int *ilist, *jlist, *numneigh, **firstneigh;
 
   if (eflag || vflag) ev_setup(eflag,vflag);
   else evflag = vflag_fdotr = 0;
@@ -86,7 +85,6 @@ void PairQspF::compute(int eflag, int vflag)
     xtmp = x[i][0];
     ytmp = x[i][1];
     ztmp = x[i][2];
-    itype = type[i];
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
@@ -100,16 +98,15 @@ void PairQspF::compute(int eflag, int vflag)
         delz = ztmp - x[j][2];
 
         rsq = delx*delx + dely*dely + delz*delz;
-        if (rsq < cut_fsq[itype][jtype]) {
+        if (rsq < cut_hmsq[itype][jtype]) {
           teff = 0.5*(temp[j] + itemp);
           lambdasq = 1.0/mass[itype];
           lambdasq += 1.0/mass[jtype];
           lambdasq = lambdasq/(kb*teff);
           lambdasq = lambdasq*MY_2PI*hbar*hbar;
-          s = MY_2PI*rsq/lambdasq;
-          fpair = -1 + 2*exp(s);
-          fpair = fpair*lambdasq;
-          fpair = 2*MY_2PI*kb*teff/fpair;
+          s = -2*MY_2PI*rsq/(lambdasq*log(2));
+          fpair = 4*MY_2PI*exp(s)*kb*teff;
+          fpair = fpair/lambdasq;
 
           f[i][0] += delx*fpair;
           f[i][1] += dely*fpair;
@@ -122,9 +119,7 @@ void PairQspF::compute(int eflag, int vflag)
           }
 
           if (eflag) {
-            en = -0.5*exp(-1*MY_2PI*rsq/lambdasq);
-            en = log(1-en);
-            en = -kb*teff*en;
+            en = kb*teff*log(2)*exp(s);
           }
 
           if (evflag)
@@ -141,7 +136,7 @@ void PairQspF::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairQspF::allocate() {
+void PairQspHMSym::allocate() {
   allocated = 1;
   int n = atom->ntypes;
 
@@ -151,7 +146,7 @@ void PairQspF::allocate() {
       setflag[i][j] = 0;
 
   memory->create(cutsq, n+1, n+1, "pair:cutsq");
-  memory->create(cut_fsq, n+1,n+1,"pair:cut_kelbgsq");
+  memory->create(cut_hmsq, n+1,n+1,"pair:cut_kelbgsq");
   memory->create(on,n+1,n+1,"pair:on");
 }
 
@@ -159,7 +154,7 @@ void PairQspF::allocate() {
    global settings
 ------------------------------------------------------------------------- */
 
-void PairQspF::settings(int narg, char **arg)
+void PairQspHMSym::settings(int narg, char **arg)
 {
   if (narg != 0) error->all(FLERR,"Illegal pair_style command");
   //cutoffs will be set per a pair type.
@@ -169,7 +164,7 @@ void PairQspF::settings(int narg, char **arg)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairQspF::coeff(int narg, char **arg)
+void PairQspHMSym::coeff(int narg, char **arg)
 {
   if (narg != 4)
     error->all(FLERR,"Incorrect args for pair coefficients");
@@ -179,15 +174,15 @@ void PairQspF::coeff(int narg, char **arg)
   force->bounds(FLERR,arg[0],atom->ntypes,ilo,ihi);
   force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
 
-  double cut_fsq1 = force->numeric(FLERR,arg[2]);
+  double cut_hmsq1 = force->numeric(FLERR,arg[2]);
   int ion = force->inumeric(FLERR, arg[3]);
 
-  cut_fsq1 = cut_fsq1*cut_fsq1;
+  cut_hmsq1 = cut_hmsq1*cut_hmsq1;
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
     for (int j = MAX(jlo,i); j <= jhi; j++) {
-      cut_fsq[i][j] = cut_fsq1;
+      cut_hmsq[i][j] = cut_hmsq1;
       on[i][j] = ion;
       setflag[i][j] = 1;
       count++;
@@ -201,11 +196,11 @@ void PairQspF::coeff(int narg, char **arg)
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairQspF::init_one(int i, int j)
+double PairQspHMSym::init_one(int i, int j)
 {
   if (setflag[i][j] == 0) error->all(FLERR,"All pair coeffs are not set");
 
-  cut_fsq[j][i] = cut_fsq[i][j];
+  cut_hmsq[j][i] = cut_hmsq[i][j];
   on[j][i] = on[i][j];
   setflag[j][i] = 1;
 
@@ -215,14 +210,14 @@ double PairQspF::init_one(int i, int j)
   // compute I,J contribution to long-range tail correction
   // count total # of atoms of type I and J via Allreduce
 
-  return sqrt(cut_fsq[i][j]);
+  return sqrt(cut_hmsq[i][j]);
 }
 
 /* ----------------------------------------------------------------------
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairQspF::init_style()
+void PairQspHMSym::init_style()
 {
   if (!atom->q_flag && !atom->temp_flag)
     error->all(FLERR,"Pair style qsp/kelbg requires atom attribute q and temp.");
@@ -234,7 +229,7 @@ void PairQspF::init_style()
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairQspF::write_restart(FILE *fp)
+void PairQspHMSym::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -243,7 +238,7 @@ void PairQspF::write_restart(FILE *fp)
     for (j = i; j <= atom->ntypes; j++) {
       fwrite(&setflag[i][j],sizeof(int),1,fp);
       if (setflag[i][j]) {
-        fwrite(&cut_fsq[i][j],sizeof(double),1,fp);
+        fwrite(&cut_hmsq[i][j],sizeof(double),1,fp);
         fwrite(&on[i][j],sizeof(int),1,fp);
       }
     }
@@ -253,7 +248,7 @@ void PairQspF::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairQspF::read_restart(FILE *fp)
+void PairQspHMSym::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
 
@@ -267,10 +262,10 @@ void PairQspF::read_restart(FILE *fp)
       MPI_Bcast(&setflag[i][j],1,MPI_INT,0,world);
       if (setflag[i][j]) {
         if (me == 0) {
-          fread(&cut_fsq[i][j],sizeof(double),1,fp);
+          fread(&cut_hmsq[i][j],sizeof(double),1,fp);
           fread(&on[i][j],sizeof(int),1,fp);
         }
-        MPI_Bcast(&cut_fsq[i][j],1,MPI_DOUBLE,0,world);
+        MPI_Bcast(&cut_hmsq[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&on[i][j],1,MPI_INT,0,world);
       }
     }
@@ -280,9 +275,9 @@ void PairQspF::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairQspF::write_restart_settings(FILE *fp)
+void PairQspHMSym::write_restart_settings(FILE *fp)
 {
-  fwrite(&cut_fsq,sizeof(double),1,fp);
+  fwrite(&cut_hmsq,sizeof(double),1,fp);
   fwrite(&on,sizeof(int),1,fp);
 }
 
@@ -290,13 +285,13 @@ void PairQspF::write_restart_settings(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairQspF::read_restart_settings(FILE *fp)
+void PairQspHMSym::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
-    fread(&cut_fsq,sizeof(double),1,fp);
+    fread(&cut_hmsq,sizeof(double),1,fp);
     fread(&on,sizeof(int),1,fp);
   }
-  MPI_Bcast(&cut_fsq,1,MPI_DOUBLE,0,world);
+  MPI_Bcast(&cut_hmsq,1,MPI_DOUBLE,0,world);
   MPI_Bcast(&on,1,MPI_INT,0,world);
 }
 
@@ -304,30 +299,30 @@ void PairQspF::read_restart_settings(FILE *fp)
    proc 0 writes to data file
 ------------------------------------------------------------------------- */
 
-void PairQspF::write_data(FILE *fp)
+void PairQspHMSym::write_data(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
-    fprintf(fp,"%d %g %d\n", i, cut_fsq[i][i], on[i][i]);
+    fprintf(fp,"%d %g %d\n", i, cut_hmsq[i][i], on[i][i]);
 }
 
 /* ----------------------------------------------------------------------
    proc 0 writes all pairs to data file
 ------------------------------------------------------------------------- */
 
-void PairQspF::write_data_all(FILE *fp)
+void PairQspHMSym::write_data_all(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
     for (int j = i; j <= atom->ntypes; j++)
       fprintf(fp,"%d %d %g %d\n",i,j,
-              cut_fsq[i][j], on[i][j]);
+              cut_hmsq[i][j], on[i][j]);
 }
 
 /* ---------------------------------------------------------------------- */
 
-void *PairQspF::extract(const char *str, int &dim)
+void *PairQspHMSym::extract(const char *str, int &dim)
 {
   dim = 2;
-  if (strcmp(str,"cut_fsq") == 0) return (void *) &cut_fsq;
+  if (strcmp(str,"cut_fsq") == 0) return (void *) &cut_hmsq;
   if (strcmp(str,"on") == 0) return (void *) &on;
   return NULL;
 }

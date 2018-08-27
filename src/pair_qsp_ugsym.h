@@ -13,27 +13,32 @@
 
 /*
   A short range correction to coulomb interactions that accounts for the distinguishable
-  nature of particles in quantum statistics at a given temperature. Designed only for
-  electron-electron interactions.
+  nature of particles in quantum statistics at a given temperature.
+
+  Reference Source:
+  Jones, Christopher S., and Michael S. Murillo.
+  “Analysis of Semi-Classical Potentials for Molecular Dynamics and Monte Carlo Simulations of Warm Dense Matter.”
+  High Energy Density Physics 3, no. 3–4 (October 2007): 379–94. https://doi.org/10.1016/j.hedp.2007.02.038.
+
 
  */
 #ifdef PAIR_CLASS
 
-PairStyle(qsp/f,PairQspF)
+PairStyle(qsp/ugs,PairQspUGSym)
 
 #else
 
-#ifndef LMP_PAIR_QSP_F_H
-#define LMP_PAIR_QSP_F_H
+#ifndef LMP_PAIR_QSP_UG_H
+#define LMP_PAIR_QSP_UG_H
 
 #include "pair.h"
 
 namespace LAMMPS_NS {
 
-class PairQspF : public Pair {
+class PairQspUGSym : public Pair {
  public:
-  PairQspF(class LAMMPS *);
-  virtual ~PairQspF();
+  PairQspUGSym(class LAMMPS *);
+  virtual ~PairQspUGSym();
   virtual void compute(int, int);
   void settings(int, char **);
   void coeff(int, char **);
@@ -48,7 +53,7 @@ class PairQspF : public Pair {
   virtual void *extract(const char *, int &);
 
  protected:
-  double **cut_fsq;
+  double **cut_ugsq;
   int **on;
 
   virtual void allocate();
