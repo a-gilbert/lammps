@@ -16,6 +16,12 @@
   nature of particles in quantum statistics at a given temperature. Designed only for
   ion-electron and electron-electron interactions.
 
+  See 
+  Jones, Christopher S., and Michael S. Murillo. “Analysis of Semi-Classical 
+  Potentials for Molecular Dynamics and Monte Carlo Simulations of Warm 
+  Dense Matter.” High Energy Density Physics 3, no. 3–4 (October 2007): 379–94.
+   https://doi.org/10.1016/j.hedp.2007.02.038.
+
  */
 #ifdef PAIR_CLASS
 
