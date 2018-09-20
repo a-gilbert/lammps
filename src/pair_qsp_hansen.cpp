@@ -178,7 +178,7 @@ void PairQspHansen::settings(int narg, char **arg)
 
 void PairQspHansen::coeff(int narg, char **arg)
 {
-  if (narg != 5)
+  if (narg != 4)
     error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
 
