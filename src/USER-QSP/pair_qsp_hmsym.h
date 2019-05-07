@@ -52,8 +52,7 @@ class PairQspHMSym : public Pair {
   virtual void *extract(const char *, int &);
 
  protected:
-  double **cut_hmsq;
-  int **on;
+  double **cut_hmsq, **temp;
 
   virtual void allocate();
 };

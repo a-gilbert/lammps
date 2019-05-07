@@ -32,7 +32,7 @@ using namespace MathConst;
 
 PairQspHMSym::PairQspHMSym(LAMMPS *lmp) : Pair(lmp)
 {
-  ewaldflag = pppmflag = msmflag = 1;
+  //ewaldflag = pppmflag = msmflag = 1;
   writedata = 1;
 }
 
@@ -45,6 +45,7 @@ PairQspHMSym::~PairQspHMSym()
       memory->destroy(setflag);
 
       memory->destroy(cut_hmsq);
+      memory->destroy(temp);
       memory->destroy(on);
     }
   }
@@ -55,7 +56,7 @@ void PairQspHMSym::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum, itype,jtype;
   double xtmp,ytmp,ztmp, delx,dely,delz,fpair;
-  double rsq, lambdasq, itemp, teff, s, en;
+  double rsq, lambdasq, teff, s, en;
   int *ilist, *jlist, *numneigh, **firstneigh;
 
   if (eflag || vflag) ev_setup(eflag,vflag);
@@ -63,7 +64,6 @@ void PairQspHMSym::compute(int eflag, int vflag)
 
   double **x = atom->x;
   double **f = atom->f;
-  double *temp = atom->temp;
   double *mass = atom->mass;
   int *type = atom->type;
   int nlocal = atom->nlocal;
@@ -81,7 +81,6 @@ void PairQspHMSym::compute(int eflag, int vflag)
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     itype = type[i];
-    itemp = temp[i];
     xtmp = x[i][0];
     ytmp = x[i][1];
     ztmp = x[i][2];
@@ -99,14 +98,14 @@ void PairQspHMSym::compute(int eflag, int vflag)
 
         rsq = delx*delx + dely*dely + delz*delz;
         if (rsq < cut_hmsq[itype][jtype]) {
-          teff = 0.5*(temp[j] + itemp);
+          teff = temp[i][j];
           lambdasq = 1.0/mass[itype];
           lambdasq += 1.0/mass[jtype];
-          lambdasq = lambdasq/(kb*teff);
-          lambdasq = lambdasq*MY_2PI*hbar*hbar;
-          s = -2*MY_2PI*rsq/(lambdasq*log(2));
-          fpair = 4*MY_2PI*exp(s)*kb*teff;
-          fpair = fpair/lambdasq;
+          lambdasq = lambdasq/(MY_2PI*kb*teff);
+          lambdasq = lambdasq*hbar*hbar;
+          s = -1*rsq/(MY_PI*lambdasq*log(2));
+          fpair = 2*kb*teff*exp(s);
+          fpair = fpair/(MY_PI*lambdasq);
 
           f[i][0] += delx*fpair;
           f[i][1] += dely*fpair;
@@ -147,6 +146,7 @@ void PairQspHMSym::allocate() {
 
   memory->create(cutsq, n+1, n+1, "pair:cutsq");
   memory->create(cut_hmsq, n+1,n+1,"pair:cut_kelbgsq");
+  memory->create(temp,n+1,n+1,"pair:temp");
   memory->create(on,n+1,n+1,"pair:on");
 }
 

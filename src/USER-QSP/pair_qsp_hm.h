@@ -13,33 +13,32 @@
 
 /*
   A short range correction to coulomb interactions that accounts for the distinguishable
-  nature of particles in quantum statistics at a given temperature. Designed only for
+  nature of particles in quantum statistics at an input temperature. Designed only for
   ion-electron and electron-electron interactions.
 
-  See 
-  Jones, Christopher S., and Michael S. Murillo. “Analysis of Semi-Classical 
-  Potentials for Molecular Dynamics and Monte Carlo Simulations of Warm 
-  Dense Matter.” High Energy Density Physics 3, no. 3–4 (October 2007): 379–94.
-   https://doi.org/10.1016/j.hedp.2007.02.038.
+  Reference Source:
+  Hansen, J. P., and I. R. McDonald. “Microscopic Simulation of a Strongly Coupled Hydrogen Plasma.”
+  Physical Review A 23, no. 4 (April 1, 1981): 2041–59. https://doi.org/10.1103/PhysRevA.23.2041.
+
 
  */
 #ifdef PAIR_CLASS
 
-PairStyle(qsp/kelbg,PairQspKelbg)
+PairStyle(qsp/hm,PairQspHM)
 
 #else
 
-#ifndef LMP_PAIR_QSP_KELBG_LONG_H
-#define LMP_PAIR_QSP_KELBG_LONG_H
+#ifndef LMP_PAIR_QSP_HANSEN_LONG_H
+#define LMP_PAIR_QSP_HANSEN_LONG_H
 
 #include "pair.h"
 
 namespace LAMMPS_NS {
 
-class PairQspKelbg : public Pair {
+class PairQspHM : public Pair {
  public:
-  PairQspKelbg(class LAMMPS *);
-  virtual ~PairQspKelbg();
+  PairQspHM(class LAMMPS *);
+  virtual ~PairQspHM();
   virtual void compute(int, int);
   void settings(int, char **);
   void coeff(int, char **);
@@ -54,19 +53,12 @@ class PairQspKelbg : public Pair {
   virtual void *extract(const char *, int &);
 
  protected:
-  double **cut_kelbgsq;
-  int **on, **style;
+  double **cut_hansensq;
+  double **temp;
 
   double *cut_respa;
 
   virtual void allocate();
-
- private:
-  double j1(double, double);
-  double get_j1(double);
-  double get_lsei(double);
-  double get_lsee(double);
-  double get_nu(int, double);
 };
 
 }

@@ -16,29 +16,30 @@
   nature of particles in quantum statistics at a given temperature. Designed only for
   ion-electron and electron-electron interactions.
 
-  Reference Source:
-  Hansen, J. P., and I. R. McDonald. “Microscopic Simulation of a Strongly Coupled Hydrogen Plasma.”
-  Physical Review A 23, no. 4 (April 1, 1981): 2041–59. https://doi.org/10.1103/PhysRevA.23.2041.
-
+  See 
+  Jones, Christopher S., and Michael S. Murillo. “Analysis of Semi-Classical 
+  Potentials for Molecular Dynamics and Monte Carlo Simulations of Warm 
+  Dense Matter.” High Energy Density Physics 3, no. 3–4 (October 2007): 379–94.
+   https://doi.org/10.1016/j.hedp.2007.02.038.
 
  */
 #ifdef PAIR_CLASS
 
-PairStyle(qsp/hansen,PairQspHansen)
+PairStyle(qsp/kelbg,PairQspKelbg)
 
 #else
 
-#ifndef LMP_PAIR_QSP_HANSEN_LONG_H
-#define LMP_PAIR_QSP_HANSEN_LONG_H
+#ifndef LMP_PAIR_QSP_KELBG_LONG_H
+#define LMP_PAIR_QSP_KELBG_LONG_H
 
 #include "pair.h"
 
 namespace LAMMPS_NS {
 
-class PairQspHansen : public Pair {
+class PairQspKelbg : public Pair {
  public:
-  PairQspHansen(class LAMMPS *);
-  virtual ~PairQspHansen();
+  PairQspKelbg(class LAMMPS *);
+  virtual ~PairQspKelbg();
   virtual void compute(int, int);
   void settings(int, char **);
   void coeff(int, char **);
@@ -53,7 +54,7 @@ class PairQspHansen : public Pair {
   virtual void *extract(const char *, int &);
 
  protected:
-  double **cut_hansensq;
+  double **cut_kelbgsq, **temp;
   int **on;
 
   double *cut_respa;

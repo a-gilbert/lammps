@@ -15,7 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "pair_qsp_hansen.h"
+#include "pair_qsp_hm.h"
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
@@ -30,7 +30,7 @@ using namespace MathConst;
 
 /* ---------------------------------------------------------------------- */
 
-PairQspHansen::PairQspHansen(LAMMPS *lmp) : Pair(lmp)
+PairQspHM::PairQspHM(LAMMPS *lmp) : Pair(lmp)
 {
   ewaldflag = pppmflag = msmflag = 1;
   writedata = 1;
@@ -38,24 +38,25 @@ PairQspHansen::PairQspHansen(LAMMPS *lmp) : Pair(lmp)
 
 /* ---------------------------------------------------------------------- */
 
-PairQspHansen::~PairQspHansen()
+PairQspHM::~PairQspHM()
 {
   if (!copymode) {
     if (allocated) {
       memory->destroy(setflag);
 
       memory->destroy(cut_hansensq);
+      memory->destroy(temp);
       memory->destroy(on);
     }
   }
 }
 
 
-void PairQspHansen::compute(int eflag, int vflag)
+void PairQspHM::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum, itype,jtype;
   double qtmp, xtmp, ytmp, ztmp, delx, dely, delz, fpair, imass, jmass;
-  double rsq, r2inv, rinv, itemp, teff, lambda, en, s;
+  double rsq, rinv, teff, lambda, en, s;
   int *ilist,*jlist,*numneigh,**firstneigh;
 
   if (eflag || vflag) ev_setup(eflag,vflag);
@@ -64,7 +65,6 @@ void PairQspHansen::compute(int eflag, int vflag)
   double **x = atom->x;
   double **f = atom->f;
   double *q = atom->q;
-  double *temp = atom->temp;
   double *mass = atom->mass;
   int *type = atom->type;
   int nlocal = atom->nlocal;
@@ -83,7 +83,6 @@ void PairQspHansen::compute(int eflag, int vflag)
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     itype = type[i];
-    itemp = temp[i];
     imass = mass[itype];
     qtmp = q[i];
     xtmp = x[i][0];
@@ -104,18 +103,17 @@ void PairQspHansen::compute(int eflag, int vflag)
 
         rsq = delx*delx + dely*dely + delz*delz;
         if (rsq < cut_hansensq[itype][jtype]) {
-          teff = 0.5*(temp[j] + itemp);
-          r2inv = 1.0/rsq;
-          rinv = sqrt(r2inv);
+          teff = temp[itype][jtype];
+          rinv = 1.0/rsq;
+          rinv = sqrt(rinv);
           lambda = 1.0/mass[itype];
           lambda += 1.0/mass[jtype];
-          lambda = lambda/(kb*teff);
-          lambda = lambda*MY_2PI*hbar*hbar;
-          lambda = sqrt(lambda);
-          s = MY_2PI*sqrt(rsq)/lambda;
+          lambda = lambda/(kb*teff*MY_2PI);
+          lambda = sqrt(lambda)*hbar;
+          s = sqrt(rsq)/lambda;
           fpair = 1 + s;
           fpair = exp(-1*s)*fpair;
-          fpair = -1*qtmp*q[j]*qqrd2e*r2inv*fpair;
+          fpair = -1*qtmp*q[j]*qqrd2e*rinv*rinv*fpair;
           fpair = rinv*fpair;
 
           f[i][0] += delx*fpair;
@@ -136,8 +134,6 @@ void PairQspHansen::compute(int eflag, int vflag)
           if (evflag)
             ev_tally(i, j, nlocal, newton_pair, 0.0, en, fpair,
                      delx, dely, delz);
-
-
         }
       }
     }
@@ -148,7 +144,7 @@ void PairQspHansen::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::allocate() {
+void PairQspHM::allocate() {
   allocated = 1;
   int n = atom->ntypes;
 
@@ -158,15 +154,15 @@ void PairQspHansen::allocate() {
       setflag[i][j] = 0;
 
   memory->create(cutsq, n+1, n+1, "pair:cutsq");
-  memory->create(cut_hansensq, n+1,n+1,"pair:cut_kelbgsq");
-  memory->create(on,n+1,n+1,"pair:on");
+  memory->create(cut_hansensq, n+1,n+1,"pair:cut_hansensq");
+  memory->create(temp, n+1, n+1, "pair:temp");
 }
 
 /* ----------------------------------------------------------------------
    global settings
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::settings(int narg, char **arg)
+void PairQspHM::settings(int narg, char **arg)
 {
   if (narg != 0) error->all(FLERR,"Illegal pair_style command");
   //cutoffs will be set per a pair type.
@@ -176,7 +172,7 @@ void PairQspHansen::settings(int narg, char **arg)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::coeff(int narg, char **arg)
+void PairQspHM::coeff(int narg, char **arg)
 {
   if (narg != 4)
     error->all(FLERR,"Incorrect args for pair coefficients");
@@ -187,15 +183,14 @@ void PairQspHansen::coeff(int narg, char **arg)
   force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
 
   double cut_hansensq1 = force->numeric(FLERR,arg[2]);
-  int ion = force->inumeric(FLERR, arg[3]);
-
+  double temp1 = force->inumeric(FLERR, arg[3]);
   cut_hansensq1 = cut_hansensq1*cut_hansensq1;
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
     for (int j = MAX(jlo,i); j <= jhi; j++) {
       cut_hansensq[i][j] = cut_hansensq1;
-      on[i][j] = ion;
+      temp[i][j] = temp1;
       setflag[i][j] = 1;
       count++;
     }
@@ -208,19 +203,13 @@ void PairQspHansen::coeff(int narg, char **arg)
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairQspHansen::init_one(int i, int j)
+double PairQspHM::init_one(int i, int j)
 {
   if (setflag[i][j] == 0) error->all(FLERR,"All pair coeffs are not set");
 
   cut_hansensq[j][i] = cut_hansensq[i][j];
-  on[j][i] = on[i][j];
+  temp[j][i] = temp[i][j];
   setflag[j][i] = 1;
-
-
-
-
-  // compute I,J contribution to long-range tail correction
-  // count total # of atoms of type I and J via Allreduce
 
   return cut_hansensq[i][j];
 }
@@ -229,10 +218,10 @@ double PairQspHansen::init_one(int i, int j)
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::init_style()
+void PairQspHM::init_style()
 {
-  if (!atom->q_flag && !atom->temp_flag)
-    error->all(FLERR,"Pair style qsp/kelbg requires atom attribute q and temp.");
+  if (!atom->q_flag)
+    error->all(FLERR,"Pair style qsp/kelbg requires atom attribute q.");
 
   neighbor->request(this,instance_me);
 }
@@ -241,7 +230,7 @@ void PairQspHansen::init_style()
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::write_restart(FILE *fp)
+void PairQspHM::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -251,7 +240,7 @@ void PairQspHansen::write_restart(FILE *fp)
       fwrite(&setflag[i][j],sizeof(int),1,fp);
       if (setflag[i][j]) {
         fwrite(&cut_hansensq[i][j],sizeof(double),1,fp);
-        fwrite(&on[i][j],sizeof(int),1,fp);
+        fwrite(&temp[i][j], sizeof(double),1,fp);
       }
     }
 }
@@ -260,7 +249,7 @@ void PairQspHansen::write_restart(FILE *fp)
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::read_restart(FILE *fp)
+void PairQspHM::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
 
@@ -275,10 +264,10 @@ void PairQspHansen::read_restart(FILE *fp)
       if (setflag[i][j]) {
         if (me == 0) {
           fread(&cut_hansensq[i][j],sizeof(double),1,fp);
-          fread(&on[i][j],sizeof(int),1,fp);
+          fread(&temp[i][j],sizeof(double),1,fp);
         }
         MPI_Bcast(&cut_hansensq[i][j],1,MPI_DOUBLE,0,world);
-        MPI_Bcast(&on[i][j],1,MPI_INT,0,world);
+        MPI_Bcast(&temp[i][j],1,MPI_DOUBLE,0,world);
       }
     }
 }
@@ -287,54 +276,54 @@ void PairQspHansen::read_restart(FILE *fp)
   proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::write_restart_settings(FILE *fp)
+void PairQspHM::write_restart_settings(FILE *fp)
 {
   fwrite(&cut_hansensq,sizeof(double),1,fp);
-  fwrite(&on,sizeof(int),1,fp);
+  fwrite(&temp, sizeof(double),1,fp);
 }
 
 /* ----------------------------------------------------------------------
   proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::read_restart_settings(FILE *fp)
+void PairQspHM::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
     fread(&cut_hansensq,sizeof(double),1,fp);
-    fread(&on,sizeof(int),1,fp);
+    fread(&temp, sizeof(double),1,fp);
   }
   MPI_Bcast(&cut_hansensq,1,MPI_DOUBLE,0,world);
-  MPI_Bcast(&on,1,MPI_INT,0,world);
+  MPI_Bcast(&temp,1,MPI_DOUBLE,0,world);
 }
 
 /* ----------------------------------------------------------------------
    proc 0 writes to data file
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::write_data(FILE *fp)
+void PairQspHM::write_data(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
-    fprintf(fp,"%d %g %d\n", i, cut_hansensq[i][i], on[i][i]);
+    fprintf(fp,"%d %g %g\n", i, cut_hansensq[i][i], temp[i][i]);
 }
 
 /* ----------------------------------------------------------------------
    proc 0 writes all pairs to data file
 ------------------------------------------------------------------------- */
 
-void PairQspHansen::write_data_all(FILE *fp)
+void PairQspHM::write_data_all(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
     for (int j = i; j <= atom->ntypes; j++)
-      fprintf(fp,"%d %d %g %d\n",i,j,
-              cut_hansensq[i][j], on[i][j]);
+      fprintf(fp,"%d %d %g %g\n",i,j,
+              cut_hansensq[i][j], temp[i][j]);
 }
 
 /* ---------------------------------------------------------------------- */
 
-void *PairQspHansen::extract(const char *str, int &dim)
+void *PairQspHM::extract(const char *str, int &dim)
 {
   dim = 2;
   if (strcmp(str,"cut_hansensq") == 0) return (void *) &cut_hansensq;
-  if (strcmp(str,"on") == 0) return (void *) &on;
+  if (strcmp(str,"temp") == 0) return (void *) &temp;
   return NULL;
 }

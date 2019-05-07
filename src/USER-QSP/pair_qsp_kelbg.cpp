@@ -45,70 +45,19 @@ PairQspKelbg::~PairQspKelbg()
       memory->destroy(setflag);
 
       memory->destroy(cut_kelbgsq);
+      memory->destroy(temp);
       memory->destroy(on);
-      memory->destroy(style);
     }
   }
 }
 
-double PairQspKelbg::j1(double x, double xi) {
-  double out = x*exp(-x*(x-1));
-  double t1 = 1-exp(-1*MY_2PI*MY_PIS*xi/x);
-  out = out/t1;
-  return out;
-}
-
-double PairQspKelbg::get_j1(double xi) {
-  static const double nodes[] = {0.6170308532782703957143,
-                                 2.112965958578524151141,
-                                 4.610833151017532413683,
-                                 8.399066971204842190477,
-                                 14.26010306592083084898};
-
-  static const double weights[] = {0.348014540023348861432,
-                                   0.50228067413249296034,
-                                   0.1409159194944725554027,
-                                   0.00871989302609998253045,
-                                   6.89733235856402952577e-5};
-  double out = 0;
-  for (int i = 0; i < 5; i++) {
-    out += weights[i]*j1(nodes[i], xi);
-  }
-  return out;
-}
-
-double PairQspKelbg::get_lsee(double xi) {
-  double out = 2*MY_2PI*xi*get_j1(xi);
-  return log(out);
-}
-
-/*----------------------------------------------------------------------- */
-double PairQspKelbg::get_lsei(double) {
-  return 1;
-}
-
-/* ---------------------------------------------------------------------- */
-
-double PairQspKelbg::get_nu(int style, double xi) {
-  double out = 1.0;
-  if (style == 0) {
-    //standard kelbg
-  } else if (style == 1) {
-    //electron-electron, with laguerre quadrature
-    out = -MY_PI*MY_SQRT2*xi/get_lsee(xi);
-  } else if (style == 2) {
-    //not implemented yet. Anyone know a numerical way around
-    //riemann zeta normalization??
-  }
-  return out;
-}
 
 void PairQspKelbg::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum, itype,jtype;
   double qtmp,xtmp,ytmp,ztmp, delx,dely,delz, fpair;
-  double rsq, r2inv, rinv, itemp, teff, s; //extra double s just in case.
-  double xi, lambdasq, nusq, en;
+  double rsq, rinv, teff, s, en; //extra double s just in case.
+  double lambdasq;
   int *ilist,*jlist,*numneigh,**firstneigh;
 
   if (eflag || vflag) ev_setup(eflag,vflag);
@@ -117,7 +66,6 @@ void PairQspKelbg::compute(int eflag, int vflag)
   double **x = atom->x;
   double **f = atom->f;
   double *q = atom->q;
-  double *temp = atom->temp;
   double *mass = atom->mass;
   int *type = atom->type;
   int nlocal = atom->nlocal;
@@ -136,7 +84,6 @@ void PairQspKelbg::compute(int eflag, int vflag)
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     itype = type[i];
-    itemp = temp[i];
     qtmp = q[i];
     xtmp = x[i][0];
     ytmp = x[i][1];
@@ -156,22 +103,16 @@ void PairQspKelbg::compute(int eflag, int vflag)
 
         rsq = delx*delx + dely*dely + delz*delz;
         if (rsq < cut_kelbgsq[itype][jtype]) {
-          teff = 0.5*(temp[j] + itemp);
-          r2inv = 1.0/rsq;
-          rinv = sqrt(r2inv);
+          teff = temp[i][j];
+          rinv = 1.0/rsq;
+          rinv = sqrt(rinv);
           lambdasq = 1.0/mass[itype];
           lambdasq += 1.0/mass[jtype];
-          lambdasq = lambdasq/(kb*teff);
-          lambdasq = lambdasq*MY_2PI*hbar*hbar;
-          xi = qtmp*q[j]*qqrd2e/(kb*teff);
-          xi = xi/sqrt(lambdasq);
-          nusq = get_nu(style[itype][jtype], xi);
-          nusq = nusq*nusq;
+          lambdasq = lambdasq/(MY_2PI*kb*teff);
+          lambdasq = lambdasq*hbar*hbar;
           s = rsq/lambdasq;
-          fpair = -2*MY_2PI - (1.0/s);
-          s = -1*s*MY_2PI;
-          fpair = fpair*exp(s);
-          fpair = fpair + 2*MY_2PI*exp(s*nusq);
+          fpair = (2 + (1.0/s))*exp(-1*s);
+          fpair = MY_2PI*exp(-1*MY_PI*s)-fpair;
           fpair = qtmp*q[j]*qqrd2e*fpair*rinv/lambdasq;
 
           f[i][0] += delx*fpair;
@@ -185,9 +126,8 @@ void PairQspKelbg::compute(int eflag, int vflag)
           }
 
           if (eflag) {
-            en = erfc(sqrt(MY_2PI*nusq*rsq/lambdasq));
-            en = MY_PI*sqrt(2*rsq/(nusq*lambdasq))*en;
-            en = en - exp(-1*MY_2PI*rsq/lambdasq);
+            en = MY_PI*sqrt(s)*erfc(sqrt(MY_PI*s));
+            en = en - exp(-1*MY_PI*s);
             en = qtmp*q[j]*qqrd2e*rinv*en;
           }
 
@@ -215,8 +155,8 @@ void PairQspKelbg::allocate() {
 
   memory->create(cutsq, n+1, n+1, "pair:cutsq");
   memory->create(cut_kelbgsq, n+1,n+1,"pair:cut_kelbgsq");
+  memory->create(temp, n+1, n+1, "pair:temp");
   memory->create(on,n+1,n+1,"pair:on");
-  memory->create(style,n+1,n+1,"pair:style");
 }
 
 /* ----------------------------------------------------------------------
@@ -244,8 +184,8 @@ void PairQspKelbg::coeff(int narg, char **arg)
   force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
 
   double cut_kelbgsq1 = force->numeric(FLERR,arg[2]);
+  double temp1 = force->numeric(FLERR, arg[3]);
   int ion = force->inumeric(FLERR, arg[3]);
-  int istyle = force->inumeric(FLERR, arg[4]);
 
   cut_kelbgsq1 = cut_kelbgsq1*cut_kelbgsq1;
 
@@ -253,8 +193,8 @@ void PairQspKelbg::coeff(int narg, char **arg)
   for (int i = ilo; i <= ihi; i++) {
     for (int j = MAX(jlo,i); j <= jhi; j++) {
       cut_kelbgsq[i][j] = cut_kelbgsq1;
+      temp[i][j] = temp1;
       on[i][j] = ion;
-      style[i][j] = istyle;
       setflag[i][j] = 1;
       count++;
     }
@@ -273,7 +213,7 @@ double PairQspKelbg::init_one(int i, int j)
 
   cut_kelbgsq[j][i] = cut_kelbgsq[i][j];
   on[j][i] = on[i][j];
-  style[j][i] = style[i][j];
+  temp[j][i] = temp[i][j];
   setflag[j][i] = 1;
 
 
@@ -291,8 +231,8 @@ double PairQspKelbg::init_one(int i, int j)
 
 void PairQspKelbg::init_style()
 {
-  if (!atom->q_flag && !atom->temp_flag)
-    error->all(FLERR,"Pair style qsp/kelbg requires atom attribute q and temp.");
+  if (!atom->q_flag)
+    error->all(FLERR,"Pair style qsp/kelbg requires atom attribute q.");
 
   neighbor->request(this,instance_me);
 }
@@ -311,8 +251,8 @@ void PairQspKelbg::write_restart(FILE *fp)
       fwrite(&setflag[i][j],sizeof(int),1,fp);
       if (setflag[i][j]) {
         fwrite(&cut_kelbgsq[i][j],sizeof(double),1,fp);
+        fwrite(&temp[i][j],sizeof(double),1,fp);
         fwrite(&on[i][j],sizeof(int),1,fp);
-        fwrite(&style[i][j],sizeof(int),1,fp);
       }
     }
 }
@@ -336,12 +276,12 @@ void PairQspKelbg::read_restart(FILE *fp)
       if (setflag[i][j]) {
         if (me == 0) {
           fread(&cut_kelbgsq[i][j],sizeof(double),1,fp);
+          fread(&temp[i][j],sizeof(double),1,fp);
           fread(&on[i][j],sizeof(int),1,fp);
-          fread(&style[i][j],sizeof(int),1,fp);
         }
         MPI_Bcast(&cut_kelbgsq[i][j],1,MPI_DOUBLE,0,world);
+        MPI_Bcast(&temp[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&on[i][j],1,MPI_INT,0,world);
-        MPI_Bcast(&style[i][j],1,MPI_INT,0,world);
       }
     }
 }
@@ -353,8 +293,8 @@ void PairQspKelbg::read_restart(FILE *fp)
 void PairQspKelbg::write_restart_settings(FILE *fp)
 {
   fwrite(&cut_kelbgsq,sizeof(double),1,fp);
+  fwrite(&temp,sizeof(double),1,fp);
   fwrite(&on,sizeof(int),1,fp);
-  fwrite(&style,sizeof(int),1,fp);
 }
 
 /* ----------------------------------------------------------------------
@@ -365,12 +305,12 @@ void PairQspKelbg::read_restart_settings(FILE *fp)
 {
   if (comm->me == 0) {
     fread(&cut_kelbgsq,sizeof(double),1,fp);
+    fread(&temp,sizeof(double),1,fp);
     fread(&on,sizeof(int),1,fp);
-    fread(&style,sizeof(int),1,fp);
   }
   MPI_Bcast(&cut_kelbgsq,1,MPI_DOUBLE,0,world);
+  MPI_Bcast(&temp,1,MPI_DOUBLE,0,world);
   MPI_Bcast(&on,1,MPI_INT,0,world);
-  MPI_Bcast(&style,1,MPI_INT,0,world);
 }
 
 /* ----------------------------------------------------------------------
@@ -380,7 +320,7 @@ void PairQspKelbg::read_restart_settings(FILE *fp)
 void PairQspKelbg::write_data(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
-    fprintf(fp,"%d %g %d %d\n", i, cut_kelbgsq[i][i], on[i][i], style[i][i]);
+    fprintf(fp,"%d %g %g %d\n", i, cut_kelbgsq[i][i], temp[i][i], on[i][i]);
 }
 
 /* ----------------------------------------------------------------------
@@ -391,8 +331,8 @@ void PairQspKelbg::write_data_all(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
     for (int j = i; j <= atom->ntypes; j++)
-      fprintf(fp,"%d %d %g %d %d\n",i,j,
-              cut_kelbgsq[i][j], on[i][j], style[i][j]);
+      fprintf(fp,"%d %d %g %g %d\n",i,j,
+              cut_kelbgsq[i][j], temp[i][j], on[i][j]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -402,6 +342,6 @@ void *PairQspKelbg::extract(const char *str, int &dim)
   dim = 2;
   if (strcmp(str,"cut_kelbgsq") == 0) return (void *) &cut_kelbgsq;
   if (strcmp(str,"on") == 0) return (void *) &on;
-  if (strcmp(str, "style") == 0) return (void *) &style;
+  if (strcmp(str, "temp") == 0) return (void *) &temp;
   return NULL;
 }
