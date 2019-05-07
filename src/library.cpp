@@ -38,6 +38,7 @@
 #include "memory.h"
 #include "error.h"
 #include "force.h"
+#include "info.h"
 
 using namespace LAMMPS_NS;
 
@@ -335,7 +336,7 @@ void lammps_free(void *ptr)
    customize by adding names
 ------------------------------------------------------------------------- */
 
-int lammps_extract_setting(void *ptr, char *name)
+int lammps_extract_setting(void * /*ptr*/, char *name)
 {
   if (strcmp(name,"bigint") == 0) return sizeof(bigint);
   if (strcmp(name,"tagint") == 0) return sizeof(tagint);
@@ -800,6 +801,17 @@ void lammps_reset_box(void *ptr, double *boxlo, double *boxhi,
      Allreduce to sum vector into data across all procs
 ------------------------------------------------------------------------- */
 
+#if defined(LAMMPS_BIGBIG)
+void lammps_gather_atoms(void *ptr, char * /*name */,
+                         int /*type*/, int /*count*/, void * /*data*/)
+{
+  LAMMPS *lmp = (LAMMPS *) ptr;
+
+  BEGIN_CAPTURE
+  lmp->error->all(FLERR,"Library function lammps_gather_atoms() not compatible with -DLAMMPS_BIGBIG");
+  END_CAPTURE
+}
+#else
 void lammps_gather_atoms(void *ptr, char *name,
                          int type, int count, void *data)
 {
@@ -904,6 +916,7 @@ void lammps_gather_atoms(void *ptr, char *name,
   }
   END_CAPTURE
 }
+#endif
 
 /* ----------------------------------------------------------------------
    gather the named atom-based entity for all atoms
@@ -926,6 +939,17 @@ void lammps_gather_atoms(void *ptr, char *name,
      Allgather Nlocal atoms from each proc into data
 ------------------------------------------------------------------------- */
 
+#if defined(LAMMPS_BIGBIG)
+void lammps_gather_atoms_concat(void *ptr, char * /*name */,
+                                int /*type*/, int /*count*/, void * /*data*/)
+{
+  LAMMPS *lmp = (LAMMPS *) ptr;
+
+  BEGIN_CAPTURE
+  lmp->error->all(FLERR,"Library function lammps_gather_atoms_concat() not compatible with -DLAMMPS_BIGBIG");
+  END_CAPTURE
+}
+#else
 void lammps_gather_atoms_concat(void *ptr, char *name,
                                 int type, int count, void *data)
 {
@@ -956,7 +980,7 @@ void lammps_gather_atoms_concat(void *ptr, char *name,
     }
 
     // perform MPI_Allgatherv on each proc's chunk of Nlocal atoms
-    
+
     int nprocs = lmp->comm->nprocs;
 
     int *recvcounts,*displs;
@@ -1046,6 +1070,7 @@ void lammps_gather_atoms_concat(void *ptr, char *name,
   }
   END_CAPTURE
 }
+#endif
 
 /* ----------------------------------------------------------------------
    gather the named atom-based entity for a subset of atoms
@@ -1070,6 +1095,18 @@ void lammps_gather_atoms_concat(void *ptr, char *name,
      Allreduce to sum vector into data across all procs
 ------------------------------------------------------------------------- */
 
+#if defined(LAMMPS_BIGBIG)
+void lammps_gather_atoms_subset(void *ptr, char * /*name */,
+                                int /*type*/, int /*count*/,
+                                int /*ndata*/, int * /*ids*/, void * /*data*/)
+{
+  LAMMPS *lmp = (LAMMPS *) ptr;
+
+  BEGIN_CAPTURE
+  lmp->error->all(FLERR,"Library function lammps_gather_atoms_subset() not compatible with -DLAMMPS_BIGBIG");
+  END_CAPTURE
+}
+#else
 void lammps_gather_atoms_subset(void *ptr, char *name,
                                 int type, int count,
                                 int ndata, int *ids, void *data)
@@ -1077,7 +1114,7 @@ void lammps_gather_atoms_subset(void *ptr, char *name,
   LAMMPS *lmp = (LAMMPS *) ptr;
 
   BEGIN_CAPTURE
-  { 
+  {
     int i,j,m,offset;
     tagint id;
 
@@ -1187,6 +1224,7 @@ void lammps_gather_atoms_subset(void *ptr, char *name,
   }
   END_CAPTURE
 }
+#endif
 
 /* ----------------------------------------------------------------------
    scatter the named atom-based entity in data to all atoms
@@ -1204,6 +1242,17 @@ void lammps_gather_atoms_subset(void *ptr, char *name,
      loop over Natoms, if I own atom ID, set its values from data
 ------------------------------------------------------------------------- */
 
+#if defined(LAMMPS_BIGBIG)
+void lammps_scatter_atoms(void *ptr, char * /*name */,
+                          int /*type*/, int /*count*/, void * /*data*/)
+{
+  LAMMPS *lmp = (LAMMPS *) ptr;
+
+  BEGIN_CAPTURE
+  lmp->error->all(FLERR,"Library function lammps_scatter_atoms() not compatible with -DLAMMPS_BIGBIG");
+  END_CAPTURE
+}
+#else
 void lammps_scatter_atoms(void *ptr, char *name,
                           int type, int count, void *data)
 {
@@ -1298,6 +1347,7 @@ void lammps_scatter_atoms(void *ptr, char *name,
   }
   END_CAPTURE
 }
+#endif
 
 /* ----------------------------------------------------------------------
    scatter the named atom-based entity in data to a subset of atoms
@@ -1317,10 +1367,22 @@ void lammps_scatter_atoms(void *ptr, char *name,
      loop over Ndata, if I own atom ID, set its values from data
 ------------------------------------------------------------------------- */
 
+#if defined(LAMMPS_BIGBIG)
+void lammps_scatter_atoms_subset(void *ptr, char * /*name */,
+                                int /*type*/, int /*count*/,
+                                int /*ndata*/, int * /*ids*/, void * /*data*/)
+{
+  LAMMPS *lmp = (LAMMPS *) ptr;
+
+  BEGIN_CAPTURE
+  lmp->error->all(FLERR,"Library function lammps_scatter_atoms_subset() not compatible with -DLAMMPS_BIGBIG");
+  END_CAPTURE
+}
+#else
 void lammps_scatter_atoms_subset(void *ptr, char *name,
-                                 int type, int count, 
+                                 int type, int count,
                                  int ndata, int *ids, void *data)
-{ 
+{
   LAMMPS *lmp = (LAMMPS *) ptr;
 
   BEGIN_CAPTURE
@@ -1362,9 +1424,11 @@ void lammps_scatter_atoms_subset(void *ptr, char *name,
       int *dptr = (int *) data;
 
       if (count == 1) {
-        for (i = 0; i < ndata; i++)
-          if ((m = lmp->atom->map(i+1)) >= 0)
+        for (i = 0; i < ndata; i++) {
+          id = ids[i];
+          if ((m = lmp->atom->map(id)) >= 0)
             vector[m] = dptr[i];
+        }
 
       } else if (imgpack) {
         for (i = 0; i < ndata; i++) {
@@ -1417,6 +1481,7 @@ void lammps_scatter_atoms_subset(void *ptr, char *name,
   }
   END_CAPTURE
 }
+#endif
 
 /* ----------------------------------------------------------------------
    create N atoms and assign them to procs based on coords
@@ -1514,12 +1579,63 @@ void lammps_create_atoms(void *ptr, int n, tagint *id, int *type,
     if (lmp->atom->natoms != natoms_prev + n) {
       char str[128];
       sprintf(str,"Library warning in lammps_create_atoms, "
-              "invalid total atoms %ld %ld",lmp->atom->natoms,natoms_prev+n);
+              "invalid total atoms " BIGINT_FORMAT " " BIGINT_FORMAT,
+              lmp->atom->natoms,natoms_prev+n);
       if (lmp->comm->me == 0)
         lmp->error->warning(FLERR,str);
     }
   }
   END_CAPTURE
+}
+
+// ----------------------------------------------------------------------
+// library API functions for accessing LAMMPS configuration
+// ----------------------------------------------------------------------
+
+int lammps_config_has_package(char * package_name) {
+  return Info::has_package(package_name);
+}
+
+int lammps_config_package_count() {
+  int i = 0;
+  while(LAMMPS::installed_packages[i] != NULL) {
+    ++i;
+  }
+  return i;
+}
+
+int lammps_config_package_name(int index, char * buffer, int max_size) {
+  int i = 0;
+  while(LAMMPS::installed_packages[i] != NULL && i < index) {
+    ++i;
+  }
+
+  if(LAMMPS::installed_packages[i] != NULL) {
+    strncpy(buffer, LAMMPS::installed_packages[i], max_size);
+    return true;
+  }
+
+  return false;
+}
+
+int lammps_config_has_gzip_support() {
+  return Info::has_gzip_support();
+}
+
+int lammps_config_has_png_support() {
+  return Info::has_png_support();
+}
+
+int lammps_config_has_jpeg_support() {
+  return Info::has_jpeg_support();
+}
+
+int lammps_config_has_ffmpeg_support() {
+  return Info::has_ffmpeg_support();
+}
+
+int lammps_config_has_exceptions() {
+  return Info::has_exceptions();
 }
 
 // ----------------------------------------------------------------------

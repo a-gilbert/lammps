@@ -48,7 +48,7 @@ enum{TYPE,TYPE_FRACTION,MOLECULE,X,Y,Z,CHARGE,MASS,SHAPE,LENGTH,TRI,
      THETA,THETA_RANDOM,ANGMOM,OMEGA,
      DIAMETER,DENSITY,VOLUME,IMAGE,BOND,ANGLE,DIHEDRAL,IMPROPER,
      MESO_E,MESO_CV,MESO_RHO,EDPD_TEMP,EDPD_CV,CC,SMD_MASS_DENSITY,
-     SMD_CONTACT_RADIUS,DPDTHETA,INAME,DNAME, TEMP};
+     SMD_CONTACT_RADIUS,DPDTHETA,INAME,DNAME,VX,VY,VZ, TEMP};
 
 #define BIG INT_MAX
 
@@ -139,6 +139,27 @@ void Set::command(int narg, char **arg)
       if (strstr(arg[iarg+1],"v_") == arg[iarg+1]) varparse(arg[iarg+1],1);
       else dvalue = force->numeric(FLERR,arg[iarg+1]);
       set(Z);
+      iarg += 2;
+
+    } else if (strcmp(arg[iarg],"vx") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal set command");
+      if (strstr(arg[iarg+1],"v_") == arg[iarg+1]) varparse(arg[iarg+1],1);
+      else dvalue = force->numeric(FLERR,arg[iarg+1]);
+      set(VX);
+      iarg += 2;
+
+    } else if (strcmp(arg[iarg],"vy") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal set command");
+      if (strstr(arg[iarg+1],"v_") == arg[iarg+1]) varparse(arg[iarg+1],1);
+      else dvalue = force->numeric(FLERR,arg[iarg+1]);
+      set(VY);
+      iarg += 2;
+
+    } else if (strcmp(arg[iarg],"vz") == 0) {
+      if (iarg+2 > narg) error->all(FLERR,"Illegal set command");
+      if (strstr(arg[iarg+1],"v_") == arg[iarg+1]) varparse(arg[iarg+1],1);
+      else dvalue = force->numeric(FLERR,arg[iarg+1]);
+      set(VZ);
       iarg += 2;
 
     } else if (strcmp(arg[iarg],"charge") == 0) {
@@ -740,6 +761,9 @@ void Set::set(int keyword)
     else if (keyword == X) atom->x[i][0] = dvalue;
     else if (keyword == Y) atom->x[i][1] = dvalue;
     else if (keyword == Z) atom->x[i][2] = dvalue;
+    else if (keyword == VX) atom->v[i][0] = dvalue;
+    else if (keyword == VY) atom->v[i][1] = dvalue;
+    else if (keyword == VZ) atom->v[i][2] = dvalue;
     else if (keyword == CHARGE) atom->q[i] = dvalue;
     else if (keyword == MASS) {
       if (dvalue <= 0.0) error->one(FLERR,"Invalid mass in set command");
@@ -876,7 +900,7 @@ void Set::set(int keyword)
     // enforce quat rotation vector in z dir for 2d systems
 
     else if (keyword == QUAT) {
-      double *quat;
+      double *quat = NULL;
       if (avec_ellipsoid && atom->ellipsoid[i] >= 0)
         quat = avec_ellipsoid->bonus[atom->ellipsoid[i]].quat;
       else if (avec_tri && atom->tri[i] >= 0)
@@ -948,6 +972,21 @@ void Set::set(int keyword)
     }
 
     count++;
+  }
+
+  // update bonus data numbers
+  if (keyword == SHAPE) {
+    bigint nlocal_bonus = avec_ellipsoid->nlocal_bonus;
+    MPI_Allreduce(&nlocal_bonus,&atom->nellipsoids,1,
+                  MPI_LMP_BIGINT,MPI_SUM,world);
+  }
+  if (keyword == LENGTH) {
+    bigint nlocal_bonus = avec_line->nlocal_bonus;
+    MPI_Allreduce(&nlocal_bonus,&atom->nlines,1,MPI_LMP_BIGINT,MPI_SUM,world);
+  }
+  if (keyword == TRI) {
+    bigint nlocal_bonus = avec_tri->nlocal_bonus;
+    MPI_Allreduce(&nlocal_bonus,&atom->ntris,1,MPI_LMP_BIGINT,MPI_SUM,world);
   }
 
   // clear up per-atom memory if allocated

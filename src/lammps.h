@@ -51,6 +51,10 @@ class LAMMPS {
   int num_package;               // number of cmdline package commands
   int cite_enable;               // 1 if generating log.cite, 0 if disabled
 
+  int clientserver;              // 0 = neither, 1 = client, 2 = server
+  void *cslib;                   // client/server messaging via CSlib
+  MPI_Comm cscomm;               // MPI comm for client+server in mpi/one mode
+
   class KokkosLMP *kokkos;       // KOKKOS accelerator class
   class AtomKokkos *atomKK;      // KOKKOS version of Atom class
   class MemoryKokkos *memoryKK;  // KOKKOS version of Memory class
@@ -59,12 +63,20 @@ class LAMMPS {
 
   class CiteMe *citeme;          // citation info
 
+  static const char * installed_packages[];
+
+  static const bool has_git_info;
+  static const char git_commit[];
+  static const char git_branch[];
+  static const char git_descriptor[];
+
   LAMMPS(int, char **, MPI_Comm);
   ~LAMMPS();
   void create();
   void post_create();
   void init();
   void destroy();
+  void print_config(FILE *);    // print compile time settings
 
  private:
   void help();
@@ -163,7 +175,7 @@ The size of the MPI datatype does not match the size of a bigint.
 
 E: Small to big integers are not sized correctly
 
-This error occurs whenthe sizes of smallint, imageint, tagint, bigint,
+This error occurs when the sizes of smallint, imageint, tagint, bigint,
 as defined in src/lmptype.h are not what is expected.  Contact
 the developers if this occurs.
 

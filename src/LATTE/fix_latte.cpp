@@ -48,7 +48,7 @@ extern "C" {
 // a meaningful error messages, as they can cause
 // difficult to debug crashes or memory corruption.
 
-#define ABIVERSION 20180622
+#define LATTE_ABIVERSION 20180622
 #define INVOKED_PERATOM 8
 
 /* ---------------------------------------------------------------------- */
@@ -62,7 +62,7 @@ FixLatte::FixLatte(LAMMPS *lmp, int narg, char **arg) :
   if (comm->nprocs != 1)
     error->all(FLERR,"Fix latte currently runs only in serial");
 
-  if (latte_abiversion() != ABIVERSION)
+  if (LATTE_ABIVERSION != latte_abiversion())
     error->all(FLERR,"LAMMPS is linked against incompatible LATTE library");
 
   if (narg != 4) error->all(FLERR,"Illegal fix latte command");
@@ -189,7 +189,7 @@ void FixLatte::init()
 
 /* ---------------------------------------------------------------------- */
 
-void FixLatte::init_list(int id, NeighList *ptr)
+void FixLatte::init_list(int /*id*/, NeighList * /*ptr*/)
 {
   // list = ptr;
 }
@@ -223,13 +223,13 @@ void FixLatte::setup_pre_reverse(int eflag, int vflag)
    integrate electronic degrees of freedom
 ------------------------------------------------------------------------- */
 
-void FixLatte::initial_integrate(int vflag) {}
+void FixLatte::initial_integrate(int /*vflag*/) {}
 
 /* ----------------------------------------------------------------------
    store eflag, so can use it in post_force to tally per-atom energies
 ------------------------------------------------------------------------- */
 
-void FixLatte::pre_reverse(int eflag, int vflag)
+void FixLatte::pre_reverse(int eflag, int /*vflag*/)
 {
   eflag_caller = eflag;
 }
@@ -239,8 +239,7 @@ void FixLatte::pre_reverse(int eflag, int vflag)
 void FixLatte::post_force(int vflag)
 {
   int eflag = eflag_caller;
-  if (eflag || vflag) ev_setup(eflag,vflag);
-  else evflag = eflag_global = vflag_global = eflag_atom = vflag_atom = 0;
+  ev_init(eflag,vflag);
 
   // compute Coulombic potential = pe[i]/q[i]
   // invoke compute pe/atom
@@ -299,7 +298,7 @@ void FixLatte::post_force(int vflag)
   if (coulomb) forces = &flatte[0][0];
   else forces = &atom->f[0][0];
   int maxiter = -1;
-  
+
   latte(flags,&natoms,coords,type,&ntypes,mass,boxlo,boxhi,&domain->xy,
         &domain->xz,&domain->yz,forces,&maxiter,&latte_energy,
         &atom->v[0][0],&update->dt,virial,&newsystem,&latteerror);

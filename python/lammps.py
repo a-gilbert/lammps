@@ -85,14 +85,19 @@ class lammps(object):
     # fall back to loading with a relative path,
     #   typically requires LD_LIBRARY_PATH to be set appropriately
 
+    if any([f.startswith('liblammps') and f.endswith('.dylib') for f in os.listdir(modpath)]):
+      lib_ext = ".dylib"
+    else:
+      lib_ext = ".so"
+
     if not self.lib:
       try:
-        if not name: self.lib = CDLL(join(modpath,"liblammps.so"),RTLD_GLOBAL)
-        else: self.lib = CDLL(join(modpath,"liblammps_%s.so" % name),
+        if not name: self.lib = CDLL(join(modpath,"liblammps" + lib_ext),RTLD_GLOBAL)
+        else: self.lib = CDLL(join(modpath,"liblammps_%s" % name + lib_ext),
                               RTLD_GLOBAL)
       except:
-        if not name: self.lib = CDLL("liblammps.so",RTLD_GLOBAL)
-        else: self.lib = CDLL("liblammps_%s.so" % name,RTLD_GLOBAL)
+        if not name: self.lib = CDLL("liblammps" + lib_ext,RTLD_GLOBAL)
+        else: self.lib = CDLL("liblammps_%s" % name + lib_ext,RTLD_GLOBAL)
 
     # define ctypes API for each library method
     # NOTE: should add one of these for each lib function
@@ -173,6 +178,9 @@ class lammps(object):
         self.lib.lammps_open(narg,cargs,comm_val,byref(self.lmp))
 
       else:
+        if lammps.has_mpi4py:
+          from mpi4py import MPI
+          self.comm = MPI.COMM_WORLD
         self.opened = 1
         if cmdargs:
           cmdargs.insert(0,"lammps.py")
@@ -209,6 +217,7 @@ class lammps(object):
     self.c_bigint = get_ctypes_int(self.extract_setting("bigint"))
     self.c_tagint = get_ctypes_int(self.extract_setting("tagint"))
     self.c_imageint = get_ctypes_int(self.extract_setting("imageint"))
+    self._installed_packages = None
 
   # shut-down LAMMPS instance
 
@@ -235,7 +244,7 @@ class lammps(object):
     if cmd: cmd = cmd.encode()
     self.lib.lammps_command(self.lmp,cmd)
 
-    if self.uses_exceptions and self.lib.lammps_has_error(self.lmp):
+    if self.has_exceptions and self.lib.lammps_has_error(self.lmp):
       sb = create_string_buffer(100)
       error_type = self.lib.lammps_get_last_error_message(self.lmp, sb, 100)
       error_msg = sb.value.decode().strip()
@@ -261,7 +270,7 @@ class lammps(object):
 
   def extract_setting(self, name):
     if name: name = name.encode()
-    self.lib.lammps_extract_atom.restype = c_int
+    self.lib.lammps_extract_setting.restype = c_int
     return int(self.lib.lammps_extract_setting(self.lmp,name))
 
   # extract global info
@@ -562,13 +571,36 @@ class lammps(object):
                                  shrinkexceed)
 
   @property
-  def uses_exceptions(self):
+  def has_exceptions(self):
     """ Return whether the LAMMPS shared library was compiled with C++ exceptions handling enabled """
-    try:
-      if self.lib.lammps_has_error:
-        return True
-    except(AttributeError):
-      return False
+    return self.lib.lammps_config_has_exceptions() != 0
+
+  @property
+  def has_gzip_support(self):
+    return self.lib.lammps_config_has_gzip_support() != 0
+
+  @property
+  def has_png_support(self):
+    return self.lib.lammps_config_has_png_support() != 0
+
+  @property
+  def has_jpeg_support(self):
+    return self.lib.lammps_config_has_jpeg_support() != 0
+
+  @property
+  def has_ffmpeg_support(self):
+    return self.lib.lammps_config_has_ffmpeg_support() != 0
+
+  @property
+  def installed_packages(self):
+    if self._installed_packages is None:
+      self._installed_packages = []
+      npackages = self.lib.lammps_config_package_count()
+      sb = create_string_buffer(100)
+      for idx in range(npackages):
+        self.lib.lammps_config_package_name(idx, sb, 100)
+        self._installed_packages.append(sb.value.decode())
+    return self._installed_packages
 
 # -------------------------------------------------------------------------
 # -------------------------------------------------------------------------
@@ -684,6 +716,12 @@ class Atom(object):
             self.lmp.eval("vy[%d]" % self.index),
             self.lmp.eval("vz[%d]" % self.index))
 
+  @velocity.setter
+  def velocity(self, value):
+     self.lmp.set("atom", self.index, "vx", value[0])
+     self.lmp.set("atom", self.index, "vy", value[1])
+     self.lmp.set("atom", self.index, "vz", value[2])
+
   @property
   def force(self):
     return (self.lmp.eval("fx[%d]" % self.index),
@@ -713,6 +751,11 @@ class Atom2D(Atom):
   def velocity(self):
     return (self.lmp.eval("vx[%d]" % self.index),
             self.lmp.eval("vy[%d]" % self.index))
+
+  @velocity.setter
+  def velocity(self, value):
+     self.lmp.set("atom", self.index, "vx", value[0])
+     self.lmp.set("atom", self.index, "vy", value[1])
 
   @property
   def force(self):
@@ -827,6 +870,10 @@ class PyLammps(object):
 
   def run(self, *args, **kwargs):
     output = self.__getattr__('run')(*args, **kwargs)
+
+    if(lammps.has_mpi4py):
+      output = self.lmp.comm.bcast(output, root=0) 
+    
     self.runs += get_thermo_data(output)
     return output
 
@@ -944,7 +991,7 @@ class PyLammps(object):
       elif line.startswith("Dihedrals"):
         parts = self._split_values(line)
         system['ndihedrals'] = int(self._get_pair(parts[0])[1])
-        system['nangletypes'] = int(self._get_pair(parts[1])[1])
+        system['ndihedraltypes'] = int(self._get_pair(parts[1])[1])
         system['dihedral_style'] = self._get_pair(parts[2])[1]
       elif line.startswith("Impropers"):
         parts = self._split_values(line)

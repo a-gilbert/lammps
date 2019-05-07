@@ -18,13 +18,13 @@
    Please cite the related publication:
    Tranchida, J., Plimpton, S. J., Thibaudeau, P., & Thompson, A. P. (2018).
    Massively parallel symplectic algorithm for coupled magnetic spin dynamics
-   and molecular dynamics. arXiv preprint arXiv:1801.10233.
+   and molecular dynamics. Journal of Computational Physics.
 ------------------------------------------------------------------------- */
 
 #include <mpi.h>
-#include <math.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstring>
+#include <cstdlib>
 
 #include "atom.h"
 #include "atom_vec_ellipsoid.h"
@@ -131,8 +131,8 @@ void FixLangevinSpin::init()
   gil_factor = 1.0/(1.0+(alpha_t)*(alpha_t));
   dts = update->dt;
 
-  double hbar = force->hplanck/MY_2PI;	// eV/(rad.THz)
-  double kb = force->boltz;		// eV/K
+  double hbar = force->hplanck/MY_2PI;  // eV/(rad.THz)
+  double kb = force->boltz;             // eV/K
   D = (MY_2PI*alpha_t*gil_factor*kb*temp);
   D /= (hbar*dts);
   sigma = sqrt(2.0*D);
@@ -158,7 +158,7 @@ void FixLangevinSpin::add_tdamping(double spi[3], double fmi[3])
   double cpx = fmi[1]*spi[2] - fmi[2]*spi[1];
   double cpy = fmi[2]*spi[0] - fmi[0]*spi[2];
   double cpz = fmi[0]*spi[1] - fmi[1]*spi[0];
-	
+
   // adding the transverse damping
 
   fmi[0] -= alpha_t*cpx;
@@ -192,7 +192,7 @@ void FixLangevinSpin::add_temperature(double fmi[3])
 
 /* ---------------------------------------------------------------------- */
 
-void FixLangevinSpin::post_force_respa(int vflag, int ilevel, int iloop)
+void FixLangevinSpin::post_force_respa(int vflag, int ilevel, int /*iloop*/)
 {
   if (ilevel == nlevels_respa-1) post_force(vflag);
 }
